@@ -160,13 +160,15 @@ Essa ordem garante que os documentos de associação recebam o campo `acesso` an
 
 ## Deploy
 
-Esta revisão foi validada localmente e **não foi publicada**. As novas rotas dependem das novas Functions e regras; publicar somente o Hosting não basta. Após aprovação explícita do destino e planejamento da atualização das estações antigas, publique Functions e regras compatíveis e depois o frontend. Mantenha a migração administrativa de senhas como operação separada, conforme descrito acima.
+Esta revisão foi publicada em 07/10/2026 no alias `prod`, projeto `curso-angular-8e009`, incluindo Functions, regras do Firestore e Hosting. As novas rotas dependem dos três componentes; estações antigas que gravavam vendas diretamente precisam ser atualizadas para o frontend compatível. A migração administrativa de senhas permanece uma operação separada, conforme descrito acima.
 
 ```powershell
 npm run deploy
 ```
 
 O deploy publica `dist/simple/browser` no Firebase Hosting configurado pelo alias `prod`. Confirme o projeto de destino antes de executar o comando.
+
+Aplicação publicada: `https://curso-angular-8e009.web.app`.
 
 Consulte `AGENTS.md` para a arquitetura, os padrões de desenvolvimento e as lacunas conhecidas.
 

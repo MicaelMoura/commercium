@@ -96,12 +96,12 @@ Trate esta lista como dívida já existente. Atualize-a quando uma lacuna for re
 
 ### Prioridade crítica
 
-- A transação de venda está implementada e validada nos emuladores. A revisão de PDV/comandas/PWA ainda não foi publicada: coordenar o deploy de Functions, regras e frontend, incluindo a atualização das estações antigas que gravavam vendas diretamente.
+- A transação de venda está implementada, validada nos emuladores e publicada com PDV, comandas e PWA no alias `prod` em 07/10/2026. Estações antigas que gravavam vendas diretamente precisam ser atualizadas para o frontend compatível com as novas regras.
 
 ### Implantação de segurança pendente
 
 - Guards, autorização por papel, restauração segura do tenant e logout Firebase estão implementados no código.
-- A versão anterior de `firestore.rules` foi publicada no projeto `curso-angular-8e009` em 21/08/2026. Os novos bloqueios de escrita direta em vendas/comandas/mesas e de alteração de lançamentos vinculados a vendas foram validados localmente e ainda exigem publicação.
+- Os bloqueios de escrita direta em vendas, comandas e mesas e de alteração de lançamentos vinculados a vendas foram publicados no projeto `curso-angular-8e009` em 07/10/2026.
 - `senhaAdmin` não integra mais o contrato persistido. O provisionamento usa a callable Function `provisionarEmpresa`, publicada no projeto `curso-angular-8e009` em 21/08/2026.
 - O gerenciamento de usuários usa `provisionarUsuario`, `atualizarUsuario` e `removerAcessoUsuario`. As Functions, as regras que bloqueiam escrita direta e o frontend correspondente foram publicados no projeto `curso-angular-8e009` em 21/08/2026.
 - A migração `functions/scripts/migrate-remove-senha-admin.mjs` precisa ser executada com credenciais administrativas para remover campos legados, invalidar senhas potencialmente expostas e revogar sessões. Não considere a exposição remediada antes dessa execução.
