@@ -34,17 +34,17 @@ export class ModalEmpresasFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.formCompany = this.fb.group({
-      razaoSocial: ['', Validators.required],
-      nomeFantasia: ['', Validators.required],
-      cnpj: ['', [Validators.required]],
-      email: ['', [Validators.required, Validators.email]],
-      telefone: ['', [Validators.required]],
-      endereco: ['', Validators.required],
-      bairro: ['', Validators.required],
-      cidade: ['', Validators.required],
-      cep: ['', [Validators.required]],
-      complemento: [''],
-      emailAdmin: ['', [Validators.required, Validators.email]],
+      razaoSocial: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(160)]],
+      nomeFantasia: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
+      cnpj: ['', [Validators.required, Validators.pattern(/^(\d{14}|\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})$/)]],
+      email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
+      telefone: ['', [Validators.required, Validators.pattern(/^(\d{10,11}|\(\d{2}\)\s?\d{4,5}-\d{4})$/)]],
+      endereco: ['', [Validators.required, Validators.maxLength(180)]],
+      bairro: ['', [Validators.required, Validators.maxLength(100)]],
+      cidade: ['', [Validators.required, Validators.maxLength(100)]],
+      cep: ['', [Validators.required, Validators.pattern(/^(\d{8}|\d{5}-\d{3})$/)]],
+      complemento: ['', Validators.maxLength(120)],
+      emailAdmin: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
       senhaAdmin: [''],
     });
 
@@ -55,6 +55,7 @@ export class ModalEmpresasFormComponent implements OnInit {
       this.formCompany.controls['senhaAdmin'].setValidators([
         Validators.required,
         Validators.minLength(12),
+        Validators.maxLength(128),
       ]);
       this.formCompany.controls['senhaAdmin'].updateValueAndValidity();
     }
@@ -73,13 +74,27 @@ export class ModalEmpresasFormComponent implements OnInit {
 
     this.isSaving = true;
     const rawValue = this.formCompany.getRawValue() as EmpresaProvisionamentoInput;
-    const { senhaAdmin, ...empresaData } = rawValue;
+    const { senhaAdmin, ...rawEmpresaData } = rawValue;
+    const empresaData: EmpresaPersistidaInput = {
+      ...rawEmpresaData,
+      cnpj: rawEmpresaData.cnpj.replace(/\D/g, ''),
+      telefone: rawEmpresaData.telefone.replace(/\D/g, ''),
+      cep: rawEmpresaData.cep?.replace(/\D/g, ''),
+      razaoSocial: rawEmpresaData.razaoSocial.trim(),
+      nomeFantasia: rawEmpresaData.nomeFantasia.trim(),
+      email: rawEmpresaData.email.trim().toLowerCase(),
+      endereco: rawEmpresaData.endereco.trim(),
+      bairro: rawEmpresaData.bairro?.trim(),
+      cidade: rawEmpresaData.cidade?.trim(),
+      complemento: rawEmpresaData.complemento?.trim(),
+      emailAdmin: rawEmpresaData.emailAdmin.trim().toLowerCase(),
+    };
 
     try {
       if (this.isEditMode) {
         await this.empresasService.updateEmpresa(
           this.data!.firebaseId,
-          empresaData as EmpresaPersistidaInput,
+          empresaData,
         );
         this.dialogRef.close({ changed: true });
       } else {

@@ -1,86 +1,30 @@
-import { Component, Inject, signal, computed, HostListener } from '@angular/core';
+import { Component, Inject, computed, signal } from '@angular/core';
+import { FormControl, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { FormaPagamento, ItemVenda } from '../../../interfaces/sales';
-
-@Component({
-    selector: 'app-sales-modal',
-    templateUrl: './sales-modal-finalizar.component.html',
-    styleUrls: ['./sales-modal-finalizar.component.scss'],
-    standalone: false
-})
+import { FormaPagamento, Pagamento, ResultadoPagamento } from '../../../interfaces/sales';
+export const arredondar = (value: number): number => Math.round((value + Number.EPSILON) * 100) / 100;
+@Component({ selector: 'app-sales-modal', templateUrl: './sales-modal-finalizar.component.html', styleUrls: ['./sales-modal-finalizar.component.scss'], standalone: false })
 export class SalesModalComponent {
-  formaPagamento = signal<FormaPagamento>('dinheiro');
-  valorRecebido = signal<number>(0);
-  pagamentosRealizados = signal<{ forma: string, valor: number }[]>([]);
-
-  @HostListener('window:keydown', ['$event'])
-  handleModalKeyDown(event: KeyboardEvent) {
-    if (event.key === 'Enter') {
-      // Só confirma se a lógica de valor permitir
-      if (this.podeConfirmar()) {
-        event.preventDefault();
-        this.confirmar();
-      }
-    }
-
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      this.cancelar();
-    }
-  }
-
-  constructor(
-    public dialogRef: MatDialogRef<SalesModalComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: { total: number }
-  ) {}
-
-  podeConfirmar = computed(() => {
-    if (this.saldoRestante() <= 0) {
-      // Se for dinheiro, exige valor igual ou maior que o total
-      return true;
-    }
-    return false;
-  });
-
-  totalPago = computed(() => 
-    this.pagamentosRealizados().reduce((acc, p) => acc + p.valor, 0)
-  );
-
-  saldoRestante = computed(() => {
-    const restante = this.data.total - this.totalPago();
-    return restante > 0 ? restante : 0;
-  });
-  
-  troco = computed(() => {
-    const excesso = this.totalPago() - this.data.total;
-    return excesso > 0 ? excesso : 0;
-  })
-
-  confirmar() {
-    // Retorna os dados para o componente principal
-    this.dialogRef.close({
-      formaPagamento: this.formaPagamento(),
-      valorRecebido: this.valorRecebido()
-    });
-  }
-
-  cancelar() {
-    this.dialogRef.close(null);
-  }
-  
-  adicionarPagamento(forma: string) {
-    const valor = Number(this.valorRecebido());
-    
-    if (valor <= 0) return;
-
-    // Adiciona à lista
+  readonly valor = new FormControl(0, { nonNullable: true, validators: [Validators.required, Validators.min(.01), Validators.max(99999999)] });
+  readonly pagamentosRealizados = signal<Pagamento[]>([]);
+  readonly erro = signal('');
+  readonly confirmado = signal(false);
+  readonly totalPago = computed(() => arredondar(this.pagamentosRealizados().reduce((acc, p) => acc + p.valor, 0)));
+  readonly saldoRestante = computed(() => Math.max(0, arredondar(this.data.total - this.totalPago())));
+  readonly troco = computed(() => Math.max(0, arredondar(this.totalPago() - this.data.total)));
+  readonly podeConfirmar = computed(() => this.data.total > 0 && this.totalPago() >= this.data.total && !this.confirmado() &&
+    this.troco() <= arredondar(this.pagamentosRealizados().filter(p => p.forma === 'dinheiro').reduce((sum, p) => sum + p.valor, 0)));
+  readonly labels: Record<FormaPagamento, string> = { dinheiro: 'Dinheiro', credito: 'Crédito', debito: 'Débito', pix: 'Pix' };
+  constructor(public dialogRef: MatDialogRef<SalesModalComponent, ResultadoPagamento | undefined>, @Inject(MAT_DIALOG_DATA) public data: { total: number }) { this.valor.setValue(data.total); }
+  adicionarPagamento(forma: FormaPagamento): void {
+    this.erro.set('');
+    const valor = arredondar(this.valor.value);
+    if (this.valor.invalid || !Number.isFinite(valor) || valor <= 0 || this.pagamentosRealizados().length >= 20 || this.confirmado()) return;
+    if (forma !== 'dinheiro' && valor > this.saldoRestante()) { this.erro.set('Cartão e Pix não podem ultrapassar o saldo restante.'); return; }
     this.pagamentosRealizados.update(atual => [...atual, { forma, valor }]);
-    
-    // Reseta o campo de valor para o próximo
-    this.valorRecebido.set(0);
+    this.valor.setValue(this.saldoRestante());
   }
-
-  removerPagamento(index: number) {
-    this.pagamentosRealizados.update(atual => atual.filter((_, i) => i !== index));
-  }
+  removerPagamento(index: number): void { this.pagamentosRealizados.update(atual => atual.filter((_, i) => i !== index)); this.valor.setValue(this.saldoRestante()); }
+  confirmar(): void { if (!this.podeConfirmar()) return; this.confirmado.set(true); this.dialogRef.close({ pagamentos: this.pagamentosRealizados(), troco: this.troco() }); }
+  cancelar(): void { this.dialogRef.close(); }
 }

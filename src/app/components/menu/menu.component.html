@@ -1,41 +1,23 @@
-<header class="mobile-header">
-  <button type="button" aria-label="Abrir menu" [attr.aria-expanded]="mobileOpen()" (click)="toggleMenu()">
-    <mat-icon>menu</mat-icon>
-  </button>
-  <a routerLink="/vendas">
-    <img src="assets/logo.png" alt="">
-    <span>{{ nameSoftware }}</span>
-  </a>
-</header>
-
-@if (mobileOpen()) {
-  <button type="button" class="backdrop" aria-label="Fechar menu pelo fundo" (click)="closeMobileMenu()"></button>
-}
-
-<nav class="sidemenu" [class.collapsed]="collapsed()" [class.mobile-open]="mobileOpen()" aria-label="Navegação principal">
-  <header class="menu-header">
-    <button type="button" class="menu-toggle" [attr.aria-label]="mobileOpen() ? 'Fechar menu' : 'Alternar menu'" [attr.aria-expanded]="!collapsed()" (click)="toggleMenu()">
-      <mat-icon>{{ mobileOpen() ? 'close' : 'menu' }}</mat-icon>
-    </button>
-    <a class="brand" routerLink="/vendas" aria-label="Ir para vendas" (click)="closeMobileMenu()">
-      <img src="assets/logo.png" alt="">
-      <span>{{ nameSoftware }}</span>
-    </a>
-  </header>
-
-  <div class="menu-links">
-    <a routerLink="/vendas" routerLinkActive="active" title="Vendas" (click)="closeMobileMenu()"><mat-icon>shopping_cart</mat-icon><span>Vendas</span></a>
-    <a routerLink="/users" routerLinkActive="active" title="Cadastrar usuário" (click)="closeMobileMenu()"><mat-icon>person_add</mat-icon><span>Cadastrar Usuário</span></a>
-    @if (isSystemAdmin()) {
-      <a routerLink="/empresas" routerLinkActive="active" title="Empresas" (click)="closeMobileMenu()"><mat-icon>business</mat-icon><span>Empresas</span></a>
-    }
-    <a routerLink="/fornecedores" routerLinkActive="active" title="Fornecedores" (click)="closeMobileMenu()"><mat-icon>handshake</mat-icon><span>Fornecedores</span></a>
-    <a routerLink="/produtos" routerLinkActive="active" title="Produtos" (click)="closeMobileMenu()"><mat-icon>category</mat-icon><span>Produtos</span></a>
-    <a routerLink="/stock" routerLinkActive="active" title="Estoque" (click)="closeMobileMenu()"><mat-icon>inventory_2</mat-icon><span>Estoque</span></a>
-    <a routerLink="/cashier" routerLinkActive="active" title="Caixa" (click)="closeMobileMenu()"><mat-icon>account_balance_wallet</mat-icon><span>Caixa</span></a>
+<header class="mobile-header"><button type="button" aria-label="Abrir menu" [attr.aria-expanded]="mobileOpen()" (click)="toggleMenu()"><mat-icon>menu</mat-icon></button><a routerLink="/vendas"><img [src]="branding.config().logo" alt=""><span>{{ branding.config().nome }}</span></a><a class="mobile-pos" routerLink="/comandas" aria-label="Mesas e comandas"><mat-icon>table_restaurant</mat-icon></a></header>
+@if(mobileOpen()){<button class="backdrop" aria-label="Fechar menu pelo fundo" (click)="closeMobileMenu()"></button>}
+<nav class="sidemenu" [class.collapsed]="collapsed()" [class.mobile-open]="mobileOpen()" [attr.inert]="mobile() && !mobileOpen() ? '' : null" [cdkTrapFocus]="mobileOpen()" aria-label="Navegação principal">
+  <header class="menu-header"><a class="brand" routerLink="/vendas" [attr.aria-label]="branding.config().nome + ', frente de caixa'" (click)="closeMobileMenu()"><img [src]="branding.config().logo" alt=""><span>{{ branding.config().nome }}<small>{{ branding.config().slogan }}</small></span></a><button class="menu-toggle" aria-label="Alternar menu" (click)="toggleMenu()"><mat-icon>{{ mobileOpen() ? 'close' : 'menu_open' }}</mat-icon></button></header>
+  <div class="workspace-label"><span class="workspace-avatar"><mat-icon>storefront</mat-icon></span><div><strong>Minha operação</strong><small>{{ tenant() }}</small></div><i></i></div>
+  <div class="menu-links"><span class="nav-caption">ATENDIMENTO</span>
+    <a routerLink="/vendas" routerLinkActive="active" ariaCurrentWhenActive="page" title="Frente de caixa" (click)="closeMobileMenu()"><mat-icon>point_of_sale</mat-icon><span>Frente de caixa</span></a>
+    <a routerLink="/comandas" routerLinkActive="active" ariaCurrentWhenActive="page" title="Mesas e comandas" (click)="closeMobileMenu()"><mat-icon>table_restaurant</mat-icon><span>Mesas e comandas</span></a>
+    <a routerLink="/senhas" routerLinkActive="active" ariaCurrentWhenActive="page" title="Senhas" (click)="closeMobileMenu()"><mat-icon>campaign</mat-icon><span>Painel de senhas</span></a>
+    <span class="nav-caption">GESTÃO</span>
+    <a routerLink="/cashier" routerLinkActive="active" ariaCurrentWhenActive="page" title="Caixa" (click)="closeMobileMenu()"><mat-icon>account_balance_wallet</mat-icon><span>Movimentação de caixa</span></a>
+    <a routerLink="/produtos" routerLinkActive="active" ariaCurrentWhenActive="page" title="Produtos" (click)="closeMobileMenu()"><mat-icon>category</mat-icon><span>Produtos</span></a>
+    <a routerLink="/stock" routerLinkActive="active" ariaCurrentWhenActive="page" title="Estoque" (click)="closeMobileMenu()"><mat-icon>inventory_2</mat-icon><span>Estoque</span></a>
+    <a routerLink="/fornecedores" routerLinkActive="active" ariaCurrentWhenActive="page" title="Fornecedores" (click)="closeMobileMenu()"><mat-icon>local_shipping</mat-icon><span>Fornecedores</span></a>
+    @if(isAdmin()){<a routerLink="/users" routerLinkActive="active" ariaCurrentWhenActive="page" title="Equipe e acessos" (click)="closeMobileMenu()"><mat-icon>group</mat-icon><span>Equipe e acessos</span></a>}
+    @if(isSystemAdmin()){<a routerLink="/empresas" routerLinkActive="active" ariaCurrentWhenActive="page" title="Empresas" (click)="closeMobileMenu()"><mat-icon>business</mat-icon><span>Empresas</span></a>}
+    <span class="nav-caption">CONFIGURAÇÕES</span>
+    @if(isAdmin()){<a routerLink="/salao" routerLinkActive="active" ariaCurrentWhenActive="page" title="Configurar salão" (click)="closeMobileMenu()"><mat-icon>space_dashboard</mat-icon><span>Configurar salão</span></a>}
+    @if(isAdmin()){<a routerLink="/personalizacao" routerLinkActive="active" ariaCurrentWhenActive="page" title="Personalização" (click)="closeMobileMenu()"><mat-icon>palette</mat-icon><span>Marca e cores</span></a>}
+    <a routerLink="/dispositivos" routerLinkActive="active" ariaCurrentWhenActive="page" title="Dispositivos e aplicativo" (click)="closeMobileMenu()"><mat-icon>devices</mat-icon><span>Dispositivos e app</span></a>
   </div>
-
-  <button type="button" class="logout" title="Sair" (click)="logout()">
-    <mat-icon>logout</mat-icon><span>Sair</span>
-  </button>
+  <div class="menu-bottom"><span><i></i>Pronto para atender</span><button class="logout" title="Sair" (click)="logout()"><mat-icon>logout</mat-icon><span>Sair da conta</span></button></div>
 </nav>

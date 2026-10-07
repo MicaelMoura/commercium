@@ -4,9 +4,9 @@
     <div class="summary-heading">
       <h2>Resumo da venda</h2>
       <p><mat-icon>calendar_today</mat-icon>{{ startedAt | date:'dd/MM/yyyy HH:mm:ss' }}</p>
-      <p><mat-icon>sell</mat-icon>ID da venda: {{ saleId }}</p>
+      <p><mat-icon>sell</mat-icon>Venda {{ saleId | slice:0:8 }}</p>
     </div>
-    <button type="button" class="clear-top" [disabled]="items.length === 0 || loading" (click)="clearSale.emit()">
+    <button type="button" class="clear-top" [disabled]="items.length === 0 || loading || locked" (click)="clearSale.emit()">
       <mat-icon>delete_outline</mat-icon>
       Limpar venda
     </button>
@@ -30,7 +30,7 @@
           <span role="cell" data-label="Qtd.">{{ item.quantidade | number:'1.0-3' }}</span>
           <span role="cell" data-label="Vl. un.">{{ item.valorUnitario | number:'1.2-2' }}</span>
           <strong role="cell" data-label="Total">{{ item.subtotal | number:'1.2-2' }}</strong>
-          <button type="button" aria-label="Remover {{ item.descricao }}" [disabled]="loading" (click)="removeItem.emit(index)">
+          <button type="button" aria-label="Remover {{ item.descricao }}" [disabled]="loading || locked" (click)="removeItem.emit(index)">
             <mat-icon>delete_outline</mat-icon>
           </button>
         </div>
@@ -46,20 +46,19 @@
 
   <div class="totals">
     <p><span>Subtotal:</span><strong>{{ total | currency:'BRL' }}</strong></p>
-    <p><span>Desconto:</span><strong>{{ 0 | currency:'BRL' }}</strong></p>
     <div class="grand-total">
       <span>Total a pagar:</span>
       <strong>{{ total | currency:'BRL' }}</strong>
     </div>
   </div>
 
-  <button type="button" class="finalize-button" [disabled]="items.length === 0 || loading" (click)="finalizeSale.emit()">
+  <button type="button" class="finalize-button" [disabled]="(items.length === 0 && !locked) || loading || offline" (click)="finalizeSale.emit()">
     @if (loading) {
       <mat-spinner diameter="22"></mat-spinner>
       Processando venda
     } @else {
       <mat-icon>payments</mat-icon>
-      Finalizar venda (F2)
+      {{ locked ? 'Verificar venda' : 'Receber pagamento (F2)' }}
     }
   </button>
 

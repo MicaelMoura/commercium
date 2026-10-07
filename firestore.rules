@@ -35,8 +35,6 @@ service cloud.firestore {
         'supplier',
         'products',
         'stock',
-        'sales',
-        'cashflow',
         'caixa_fechamento'
       ];
     }
@@ -55,6 +53,34 @@ service cloud.firestore {
         allow list: if isTenantAdmin(empresaId) || isSystemAdmin();
         // Escritas passam pelas callable Functions para manter Auth e associação consistentes.
         allow create, update, delete: if false;
+      }
+
+      // Escritas destas coleções passam pelas callable Functions.
+      match /sales/{vendaId} {
+        allow read: if hasTenantRole(empresaId, ['usuario', 'administrador']);
+        allow write: if false;
+      }
+      match /cashflow/{movimentoId} {
+        allow read: if isTenantMember(empresaId);
+        allow create: if hasTenantRole(empresaId, ['usuario', 'administrador'])
+          && !request.resource.data.keys().hasAny(['vendaId']);
+        allow update: if hasTenantRole(empresaId, ['usuario', 'administrador'])
+          && !resource.data.keys().hasAny(['vendaId'])
+          && !request.resource.data.keys().hasAny(['vendaId']);
+        allow delete: if hasTenantRole(empresaId, ['usuario', 'administrador'])
+          && !resource.data.keys().hasAny(['vendaId']);
+      }
+      match /orders/{comandaId} {
+        allow read: if hasTenantRole(empresaId, ['usuario', 'administrador']);
+        allow write: if false;
+      }
+      match /table_sessions/{mesaId} {
+        allow read: if hasTenantRole(empresaId, ['usuario', 'administrador']);
+        allow write: if false;
+      }
+      match /settings/{configId} {
+        allow read: if hasTenantRole(empresaId, ['usuario', 'administrador']);
+        allow write: if false;
       }
 
       match /{collectionName}/{documentId} {

@@ -1,94 +1,25 @@
 <app-menu></app-menu>
-
-<div class="container-fluid pt-3">
-  <div class="row">
-    <div class="col-12">
-      <h1 class="titulo">Controle de Caixa</h1>
-      <h2 class="subtitulo">Gerencie as entradas e saídas do caixa da empresa.</h2>
-    </div>
-  </div>
-
-  <div class="row mt-2">
-    <div class="col-md-6 mb-3">
-      <mat-form-field class="w-100">
-        <mat-label>Busca Movimentação</mat-label>
-        <input matInput
-          (keyup)="applyFilter($event)"
-          placeholder="Digite a descrição ou valor"
-          #input
-          [disabled]="caixaStatus() === 'FECHADO'"
-          >
-        </mat-form-field>
-      </div>
-
-      <div class="col-md-6 d-flex justify-content-end align-items-center mb-3">
-        <h3 class="saldo-caixa me-4">
-          Saldo Atual:
-          <span [ngClass]="{'saldo-positivo': saldoAtual >= 0, 'saldo-negativo': saldoAtual < 0}">
-            R$ {{ saldoAtual | number: '1.2-2' }}
-          </span>
-        </h3>
-
-        @if (caixaStatus() === 'ABERTO') {
-          <app-button textButton="Encerrar Caixa" class="me-2" (click)="openFechamentoModal()"></app-button>
-          <app-button textButton="+ Entrada" class="me-2" (click)="openModalEntrada()"></app-button>
-          <app-button textButton="+ Saída" (click)="openModalSaida()"></app-button>
-        } @else {
-          <app-button textButton="Abrir Caixa" (click)="abrirCaixa()"></app-button>
-        }
-
-      </div>
-
-      <div class="col-12 shadow-lg">
-        @if (caixaStatus() === 'ABERTO') {
-          <table mat-table [dataSource]="dataSource" matSort>
-            <ng-container matColumnDef="data">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Data </th>
-              <td mat-cell class="td-table" *matCellDef="let item"> {{ item.dataMovimento | date: 'dd/MM/yyyy HH:mm' }} </td>
-            </ng-container>
-            <ng-container matColumnDef="tipo">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Tipo </th>
-              <td mat-cell class="td-table" *matCellDef="let item" [ngClass]="{'text-success': item.tipo === 'ENTRADA', 'text-danger': item.tipo === 'SAÍDA'}">
-                {{ item.tipo }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="descricao">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Descrição </th>
-              <td mat-cell class="td-table" *matCellDef="let item"> {{ item.descricao }} </td>
-            </ng-container>
-            <ng-container matColumnDef="valor">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Valor (R$) </th>
-              <td mat-cell class="td-table" *matCellDef="let item"> {{ item.valor | number: '1.2-2' }} </td>
-            </ng-container>
-            <ng-container matColumnDef="action">
-              <th mat-header-cell *matHeaderCellDef class="th-table"> Ações </th>
-              <td mat-cell class="td-table" *matCellDef="let item">
-                @if (item.tipo === 'ENTRADA') {
-                  <mat-icon class="icone-tabela" (click)="openModalEntrada(item)">edit</mat-icon>
-                }
-                @if (item.tipo === 'SAÍDA') {
-                  <mat-icon class="icone-tabela" (click)="openModalSaida(item)">edit</mat-icon>
-                }
-                <mat-icon class="icone-tabela" (click)="deleteCashFlow(item.id!)">delete</mat-icon>
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-            <tr class="mat-row no-data" *matNoDataRow>
-              <td class="mat-cell" [attr.colspan]="displayedColumns.length">Nenhuma movimentação encontrada.</td>
-            </tr>
-          </table>
-          <mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
-        } @else {
-          <mat-card class="p-5 text-center mt-3">
-            <mat-card-title>Caixa Fechado</mat-card-title>
-            <mat-card-content>
-              <p>Para visualizar as movimentações e realizar vendas, você precisa **Abrir o Caixa**.</p>
-              <p>Clique no botão "Abrir Caixa" acima para iniciar um novo turno.</p>
-            </mat-card-content>
-          </mat-card>
-        }
-
-      </div>
-    </div>
-  </div>
+<main class="management-page"><header class="page-header cashier-header"><div><h1>Controle de caixa</h1><p>Gerencie entradas e saídas da empresa atualmente selecionada.</p></div>
+    <div class="cashier-actions"><div class="balance"><span>Saldo atual</span><strong [class.negative]="saldoAtual < 0">{{ saldoAtual | currency:'BRL' }}</strong></div>
+      @if (caixaStatus() === 'ABERTO') { <app-button textButton="Encerrar caixa" (click)="openFechamentoModal()"></app-button><app-button textButton="+ Entrada" (click)="openModalEntrada()"></app-button><app-button textButton="+ Saída" (click)="openModalSaida()"></app-button> }
+      @else { <app-button textButton="Abrir caixa" (click)="abrirCaixa()"></app-button> }
+    </div></header>
+  <section class="management-card" aria-labelledby="cashier-title"><h2 id="cashier-title" class="visually-hidden">Movimentações do caixa</h2>
+    @if (caixaStatus() === 'FECHADO') { <div class="state-panel"><mat-icon>point_of_sale</mat-icon><strong>Caixa fechado</strong><span>Abra o caixa para visualizar e registrar movimentações.</span></div> }
+    @else {
+      <mat-form-field class="search-field" appearance="outline"><mat-label>Buscar movimentação</mat-label><mat-icon matPrefix>search</mat-icon><input matInput type="search" (input)="applyFilter($event)" placeholder="Descrição, tipo ou valor" aria-label="Buscar movimentação de caixa"></mat-form-field>
+      @if (isLoading) { <div class="state-panel" role="status"><mat-spinner diameter="36"></mat-spinner><span>Carregando movimentações...</span></div> }
+      @else if (errorMessage) { <div class="state-panel error-state" role="alert"><mat-icon>error_outline</mat-icon><span>{{ errorMessage }}</span></div> }
+      @else { <div class="table-wrapper"><table mat-table [dataSource]="dataSource" matSort>
+        <ng-container matColumnDef="data"><th mat-header-cell *matHeaderCellDef mat-sort-header>Data</th><td mat-cell data-label="Data" *matCellDef="let item">{{ item.dataMovimento | date:'dd/MM/yyyy HH:mm' }}</td></ng-container>
+        <ng-container matColumnDef="tipo"><th mat-header-cell *matHeaderCellDef mat-sort-header>Tipo</th><td mat-cell data-label="Tipo" *matCellDef="let item"><span class="status-badge" [class.positive]="item.tipo === 'ENTRADA'" [class.negative]="item.tipo === 'SAÍDA'">{{ item.tipo }}</span></td></ng-container>
+        <ng-container matColumnDef="descricao"><th mat-header-cell *matHeaderCellDef mat-sort-header>Descrição</th><td mat-cell data-label="Descrição" *matCellDef="let item">{{ item.descricao }}</td></ng-container>
+        <ng-container matColumnDef="valor"><th mat-header-cell *matHeaderCellDef mat-sort-header>Valor</th><td mat-cell data-label="Valor" *matCellDef="let item">{{ item.valor | currency:'BRL' }}</td></ng-container>
+        <ng-container matColumnDef="action"><th mat-header-cell *matHeaderCellDef class="actions-header">Ações</th><td mat-cell data-label="Ações" *matCellDef="let item" class="actions-cell">
+          <button mat-icon-button type="button" (click)="item.tipo === 'ENTRADA' ? openModalEntrada(item) : openModalSaida(item)" [disabled]="!!item.vendaId" [attr.aria-label]="item.vendaId ? 'Lançamento vinculado à venda' : 'Editar ' + item.descricao"><mat-icon>edit</mat-icon></button>
+          <button mat-icon-button type="button" color="warn" (click)="deleteCashFlow(item)" [disabled]="deletingId !== null || !!item.vendaId" [attr.aria-label]="'Excluir ' + item.descricao"><mat-icon>{{ deletingId === item.id ? 'hourglass_empty' : 'delete' }}</mat-icon></button>
+        </td></ng-container><tr mat-header-row *matHeaderRowDef="displayedColumns"></tr><tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr><tr class="mat-row no-data" *matNoDataRow><td class="mat-cell" [attr.colspan]="displayedColumns.length">{{ filterValue ? 'Nenhuma movimentação corresponde à busca.' : 'Nenhuma movimentação registrada.' }}</td></tr>
+      </table></div><mat-paginator [pageSizeOptions]="[10, 25, 50]" [pageSize]="10" showFirstLastButtons aria-label="Paginação do caixa"></mat-paginator> }
+    }
+  </section>
+</main>

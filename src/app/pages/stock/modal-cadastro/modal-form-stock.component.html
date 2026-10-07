@@ -1,5 +1,5 @@
 <div class="container-fluid p-3">
-  <mat-icon class="float-end hover" (click)="closeModal()">close</mat-icon>
+  <button mat-icon-button type="button" class="float-end" (click)="closeModal()" aria-label="Fechar movimentação de estoque" [disabled]="isSaving"><mat-icon>close</mat-icon></button>
 
   <h1 class="titulo">{{ isEditMode ? 'Editar Movimentação' : 'Nova Movimentação de Estoque' }}</h1>
   <h2 class="subtitulo">Preencha os dados do produto e o tipo de movimento (Entrada ou Ajuste)</h2>
@@ -80,12 +80,13 @@
       </div>
     }
 
+    @if (errorMessage) { <div class="col-12 mb-3 text-danger" role="alert">{{ errorMessage }}</div> }
     <div class="col-12 mt-4 text-end">
       <button
         class="botao-primario"
         type="submit"
-        [disabled]="formStock.invalid">
-        {{ isEditMode ? 'Salvar Edição' : 'Salvar Movimentação' }}
+        [disabled]="formStock.invalid || isSaving || isLoadingOptions">
+        {{ isSaving ? 'Salvando...' : (isEditMode ? 'Salvar edição' : 'Salvar movimentação') }}
       </button>
     </div>
 

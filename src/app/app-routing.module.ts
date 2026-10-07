@@ -11,6 +11,12 @@ import { CashierComponent } from './pages/cashier/cashier.component';
 import { SalesComponent } from './pages/sales/sales.component';
 import { authGuard } from './guards/auth.guard';
 import { authorizationGuard } from './guards/authorization.guard';
+import { ComandasComponent } from './pages/comandas/comandas.component';
+import { SalaoComponent } from './pages/salao/salao.component';
+import { DispositivosComponent } from './pages/dispositivos/dispositivos.component';
+import { SenhasComponent } from './pages/senhas/senhas.component';
+import { pendingChangesGuard } from './guards/pending-changes.guard';
+import { PersonalizacaoComponent } from './pages/personalizacao/personalizacao.component';
 
 const tenantAccess = {
   canActivate: [authGuard, authorizationGuard],
@@ -38,7 +44,12 @@ const routes: Routes = [
   {path: 'fornecedores', component: FornecedoresComponent, ...tenantAccess},
   {path: 'stock', component: StockComponent, ...tenantAccess},
   {path: 'cashier', component: CashierComponent, ...tenantAccess},
-  {path: 'vendas', component: SalesComponent, ...tenantAccess},
+  {path: 'vendas', component: SalesComponent, canDeactivate: [pendingChangesGuard], ...tenantAccess},
+  {path: 'comandas', component: ComandasComponent, ...tenantAccess},
+  {path: 'dispositivos', component: DispositivosComponent, ...tenantAccess},
+  {path: 'senhas', component: SenhasComponent, ...tenantAccess},
+  {path: 'salao', component: SalaoComponent, canActivate: [authGuard, authorizationGuard], canDeactivate: [pendingChangesGuard], data: { roles: ['administrador'] }},
+  {path: 'personalizacao', component: PersonalizacaoComponent, canActivate: [authGuard, authorizationGuard], data: { roles: ['administrador'] }},
   {path: '**', redirectTo: 'login'},
 ];
 

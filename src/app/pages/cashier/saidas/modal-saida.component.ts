@@ -1,124 +1,45 @@
-import { Component, OnInit, Inject } from '@angular/core';
+import { Component, DestroyRef, Inject, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { CashFlowService } from '../../../services/cashflow.service';
+import { Timestamp } from 'firebase/firestore';
 import { CashFlow } from '../../../interfaces/cashflow';
-import { AuthService } from '../../../services/auth.services';
-import { PlataformService } from '../../../services/plataform.service';
 import { Payment } from '../../../interfaces/payment';
-import { MatTableDataSource } from '@angular/material/table';
+import { CashFlowService } from '../../../services/cashflow.service';
+import { PlataformService } from '../../../services/plataform.service';
+import { CashFlowDialogData } from '../entradas/modal-entrada.component';
 
-@Component({
-    selector: 'app-modal-form-saida',
-    templateUrl: './modal-saida.component.html',
-    styleUrls: ['./modal-saida.component.scss'],
-    standalone: false
-})
+@Component({ selector: 'app-modal-form-saida', templateUrl: './modal-saida.component.html', styleUrls: ['./modal-saida.component.scss'], standalone: false })
 export class ModalSaidaComponent implements OnInit {
-  listPayments: Payment[] = [];
-  dataSource!: MatTableDataSource<Payment>;
   formCashFlow!: FormGroup;
+  listPayments: Payment[] = [];
   isEditMode = false;
-  // O tipo é fixo para este modal como SAÍDA
-  tipoMovimentacao: 'SAÍDA' = 'SAÍDA';
-
-  constructor(
-    private fb: FormBuilder,
-    public dialogRef: MatDialogRef<ModalSaidaComponent>,
-    private cashFlowService: CashFlowService,
-    private snackBar: MatSnackBar,
-    private authService: AuthService,
-    private plataformService: PlataformService,
-    @Inject(MAT_DIALOG_DATA) public data: { cashFlow: CashFlow | null }
-  ) {}
-
-  private empresaIdAtual = this.authService.activeTenantId;
+  isSaving = false;
+  errorMessage = '';
+  constructor(private fb: FormBuilder, public dialogRef: MatDialogRef<ModalSaidaComponent, boolean>, private cashFlowService: CashFlowService,
+    private plataformService: PlataformService, private snackBar: MatSnackBar, private destroyRef: DestroyRef,
+    @Inject(MAT_DIALOG_DATA) public data: CashFlowDialogData) {}
 
   ngOnInit(): void {
-    this.buildForm();
-    this.getListPayments();
-    this.convertDate();
+    this.formCashFlow = this.fb.group({ descricao: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(160)]],
+      valor: [null, [Validators.required, Validators.min(0.01)]], dataMovimento: [new Date(), Validators.required], formaPagamento: ['dinheiro', Validators.required], entidadeId: [null] });
+    if (this.data.cashFlow) { this.isEditMode = true; this.formCashFlow.patchValue({ ...this.data.cashFlow, dataMovimento: this.data.cashFlow.dataMovimento instanceof Timestamp ? this.data.cashFlow.dataMovimento.toDate() : this.data.cashFlow.dataMovimento }); }
+    this.plataformService.getPayments().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: (payments) => { this.listPayments = payments; }, error: (error: unknown) => { console.error('Não foi possível carregar as formas de pagamento.', error); this.errorMessage = 'Não foi possível carregar as formas de pagamento.'; } });
   }
 
-  private convertDate() {
-    if (this.data.cashFlow) {
-      this.isEditMode = true;
-      this.formCashFlow.patchValue(this.data.cashFlow);
-
-      // Converte Timestamp para Date para o datepicker
-      const dataMovimento = this.data.cashFlow.dataMovimento;
-      if (dataMovimento && (dataMovimento as any).toDate) {
-        const dateObj: Date = (dataMovimento as any).toDate();
-        // Garante que o mat-datepicker receba um objeto Date
-        this.formCashFlow.get('dataMovimento')?.setValue(dateObj);
-      }
-    }
-  }
-
-  buildForm() {
-    this.formCashFlow = this.fb.group({
-      id: [null], // ID do Firebase/Firestore
-      descricao: [null, [Validators.required, Validators.minLength(3)]],
-      valor: [null, [Validators.required, Validators.min(0.01)]],
-      dataMovimento: [new Date(), [Validators.required]],
-      formaPagamento: ['Dinheiro', [Validators.required]], // Dinheiro é um bom default
-      entidadeId: [null]
-    });
-  }
-
-  getListPayments() {
-    this.plataformService.getPayments().subscribe(data => {
-      this.listPayments = data;
-      this.dataSource = new MatTableDataSource(this.listPayments);
-    });
-  }
-
-  closeModal() {
-    this.dialogRef.close(false); // Retorna false para indicar que não houve sucesso
-  }
-
-  saveCashFlow() {
-    if (this.formCashFlow.invalid) {
-      this.snackBar.open('Preencha todos os campos obrigatórios.', 'Fechar', { duration: 3000 });
-      return;
-    }
-
-    const empresaId = this.empresaIdAtual();
-    if (!empresaId) {
-      this.snackBar.open('Não é possível adicionar/editar. ID da empresa inválido.', 'Fechar', { duration: 3000 });
-      return;
-    }
-
-    const itemData = {
-      ...this.formCashFlow.value,
-      tipo: this.tipoMovimentacao, // Define o tipo como SAÍDA
-      empresaid: empresaId
-    } as CashFlow;
-    
-    if (this.isEditMode && itemData.id) {
-      // Modo Edição
-      this.cashFlowService.updateCashFlow(empresaId, itemData.id, itemData)
-        .then(() => {
-          this.snackBar.open('Saída atualizada com sucesso!', 'Fechar', { duration: 3000 });
-          this.dialogRef.close(true); // Retorna true para indicar sucesso
-        })
-        .catch(error => {
-          this.snackBar.open('Erro ao atualizar saída.', 'Fechar', { duration: 3000 });
-          console.error('Erro ao atualizar:', error);
-        });
-    } else {
-      // Modo Criação
-      delete itemData.id; 
-      this.cashFlowService.addCashFlow(empresaId, itemData)
-        .then(() => {
-          this.snackBar.open('Saída registrada com sucesso!', 'Fechar', { duration: 3000 });
-          this.dialogRef.close(true);
-        })
-        .catch(error => {
-          this.snackBar.open('Erro ao registrar saída.', 'Fechar', { duration: 3000 });
-          console.error('Erro ao registrar:', error);
-        });
-    }
+  closeModal(): void { if (!this.isSaving) this.dialogRef.close(false); }
+  async saveCashFlow(): Promise<void> {
+    this.errorMessage = '';
+    if (this.formCashFlow.invalid || this.isSaving || !this.data.empresaId) { this.formCashFlow.markAllAsTouched(); return; }
+    const raw = this.formCashFlow.getRawValue();
+    const payload: Omit<CashFlow, 'id'> = { tipo: 'SAÍDA', descricao: raw.descricao.trim(), valor: Number(raw.valor), dataMovimento: raw.dataMovimento, formaPagamento: raw.formaPagamento, entidadeId: raw.entidadeId };
+    this.isSaving = true;
+    try {
+      if (this.isEditMode) { if (!this.data.cashFlow?.id) throw new Error('Identificador da saída não encontrado.'); await this.cashFlowService.updateCashFlow(this.data.empresaId, this.data.cashFlow.id, payload); }
+      else { await this.cashFlowService.addCashFlow(this.data.empresaId, payload); }
+      this.snackBar.open(`Saída ${this.isEditMode ? 'atualizada' : 'registrada'} com sucesso.`, 'Fechar', { duration: 4000 }); this.dialogRef.close(true);
+    } catch (error: unknown) { console.error('Não foi possível salvar a saída.', error); this.errorMessage = error instanceof Error ? error.message : 'Não foi possível salvar a saída.'; }
+    finally { this.isSaving = false; }
   }
 }

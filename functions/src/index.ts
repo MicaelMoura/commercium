@@ -8,6 +8,8 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 initializeApp();
 setGlobalOptions({ region: 'southamerica-east1', maxInstances: 10 });
 
+export { salvarSalao, abrirComanda, atualizarComanda, concluirVenda, chamarSenha, salvarIdentidade } from './pos.js';
+
 const SYSTEM_TENANT_ID = 'tecmhaicky';
 
 interface EmpresaProvisionamento {

@@ -1,1 +1,2 @@
 <router-outlet />
+@if (!pwa.online()) {<div class="connection-banner" role="alert"><mat-icon>cloud_off</mat-icon>Sem conexão. Reconecte para salvar pedidos e confirmar pagamentos.</div>}

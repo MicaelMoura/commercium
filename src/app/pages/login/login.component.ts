@@ -1,4 +1,5 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NAME_SOFTWARE, SLOGAN } from '../../../constants'
@@ -23,6 +24,8 @@ export class LoginComponent implements OnInit {
   private snackBar: MatSnackBar = inject(MatSnackBar);
   private authService: AuthService = inject(AuthService);
   hidePassword = signal(true);
+  carregando = signal(false);
+  private destroyRef = inject(DestroyRef);
 
   constructor(
     private fb: FormBuilder,
@@ -37,7 +40,7 @@ export class LoginComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.route.paramMap.subscribe(params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const empresaParam = params.get('business');
       if (empresaParam) {
         this.nameBusiness = empresaParam;
@@ -48,6 +51,7 @@ export class LoginComponent implements OnInit {
   }
 
   async onLogin() {
+    if (this.carregando()) return;
     try {
       this.errorMessage = '';
       if (this.loginForm.invalid) {
@@ -62,17 +66,15 @@ export class LoginComponent implements OnInit {
         return;
       }
 
-      if (this.nameBusiness == '') {
-        this.nameBusiness = business; 
-      }
-
-      await this.authService.loginForTenant(this.nameBusiness, email, password);
+      this.carregando.set(true);
+      await this.authService.loginForTenant(this.showBusinessField ? business : this.nameBusiness, email, password);
       await this.router.navigate(['vendas']);
 
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Não foi possível realizar o login.';
+      this.errorMessage = message;
       this.snackBar.open(message, 'Fechar', { duration: 4000 });
-    }
+    } finally { this.carregando.set(false); }
   }
 
   async recoverPassword(): Promise<void> {

@@ -1,5 +1,5 @@
 <div class="container-fluid p-3">
-  <mat-icon class="float-end hover" (click)="closeModal()">close</mat-icon>
+  <button mat-icon-button type="button" class="float-end" (click)="closeModal()" aria-label="Fechar cadastro de produto" [disabled]="isSaving"><mat-icon>close</mat-icon></button>
 
   <h1 class="titulo">{{ isEditMode ? 'Editar Produto' : 'Cadastro de Produto' }}</h1>
   <h2 class="subtitulo">Preencha o formulário com as informações do produto</h2>
@@ -128,13 +128,14 @@
       </div>
     </div>
 
+    @if (errorMessage) { <div class="col-12 mb-3 text-danger" role="alert">{{ errorMessage }}</div> }
     <div class="col-12">
       <button
         class="botao-primario float-end"
-        [disabled]="formProduto.invalid"
+        [disabled]="formProduto.invalid || isSaving || isLoadingOptions"
         type="submit"
         >
-        {{ isEditMode ? 'Atualizar' : 'Salvar' }} Produto
+        {{ isSaving ? 'Salvando...' : (isEditMode ? 'Atualizar produto' : 'Cadastrar produto') }}
       </button>
     </div>
   </form>

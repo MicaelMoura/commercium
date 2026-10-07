@@ -1,7 +1,7 @@
 import { Component, EventEmitter, HostBinding, HostListener, Output, computed, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.services';
-import { NAME_SOFTWARE } from '../../../constants'
+import { BrandingService } from '../../services/branding.service';
 
 @Component({
     selector: 'app-menu',
@@ -10,9 +10,10 @@ import { NAME_SOFTWARE } from '../../../constants'
     standalone: false
 })
 export class MenuComponent {
-  nameSoftware: string = NAME_SOFTWARE;
+  readonly branding: BrandingService;
   collapsed = signal(false);
   mobileOpen = signal(false);
+  mobile = signal(typeof window !== 'undefined' && window.innerWidth <= 900);
 
   @Output() collapsedChange = new EventEmitter<boolean>();
 
@@ -23,10 +24,13 @@ export class MenuComponent {
 
   constructor(
     private rota: Router,
-    private authService: AuthService
-  ) {}
+    private authService: AuthService,
+    branding: BrandingService,
+  ) { this.branding = branding; }
   
   isSystemAdmin = computed(() => this.authService.isSystemAdmin());
+  isAdmin = computed(() => this.authService.hasRole('administrador'));
+  tenant = this.authService.activeTenantId;
 
   toggleMenu(): void {
     if (this.isMobileViewport()) {
@@ -44,6 +48,7 @@ export class MenuComponent {
 
   @HostListener('window:resize')
   handleResize(): void {
+    this.mobile.set(this.isMobileViewport());
     if (!this.isMobileViewport()) {
       this.closeMobileMenu();
     }

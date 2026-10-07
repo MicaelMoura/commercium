@@ -6,20 +6,31 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  increment,
   limit,
   query,
+  runTransaction,
   updateDoc,
   where,
 } from 'firebase/firestore';
 import { Stock } from '../interfaces/stock';
 import { collectionData$, FirebaseService } from './firebase.service';
 
+export function calculateRemainingStock(currentQuantity: number, requestedQuantity: number): number {
+  if (!Number.isFinite(requestedQuantity) || requestedQuantity <= 0) {
+    throw new Error('A quantidade da baixa deve ser maior que zero.');
+  }
+  if (!Number.isFinite(currentQuantity) || currentQuantity < requestedQuantity) {
+    throw new Error('Estoque insuficiente para concluir a baixa.');
+  }
+  return currentQuantity - requestedQuantity;
+}
+
 @Injectable({ providedIn: 'root' })
 export class StockService {
   constructor(private firebase: FirebaseService) {}
 
   private collectionPath(empresaId: string) {
+    if (!empresaId) throw new Error('Selecione uma empresa.');
     return collection(this.firebase.firestore, 'business', empresaId, 'stock');
   }
 
@@ -40,6 +51,7 @@ export class StockService {
   }
 
   async diminuirEstoque(empresaId: string, produtoId: string, quantidade: number): Promise<void> {
+    calculateRemainingStock(Number.MAX_SAFE_INTEGER, quantidade);
     const stockQuery = query(
       this.collectionPath(empresaId),
       where('produtoId', '==', produtoId),
@@ -51,7 +63,15 @@ export class StockService {
       throw new Error('Estoque não localizado.');
     }
 
-    await updateDoc(snapshot.docs[0].ref, { quantidade: increment(-quantidade) });
+    const stockReference = snapshot.docs[0].ref;
+    await runTransaction(this.firebase.firestore, async (transaction) => {
+      const currentSnapshot = await transaction.get(stockReference);
+      if (!currentSnapshot.exists()) {
+        throw new Error('Estoque não localizado.');
+      }
+      const currentQuantity = Number(currentSnapshot.data()['quantidade'] ?? 0);
+      transaction.update(stockReference, { quantidade: calculateRemainingStock(currentQuantity, quantidade) });
+    });
   }
 
   async getQuantidadeEmEstoque(empresaId: string, produtoId: string): Promise<number> {

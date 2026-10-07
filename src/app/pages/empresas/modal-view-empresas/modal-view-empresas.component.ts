@@ -14,12 +14,12 @@ export class ModalViewEmpresasComponent {
 
   constructor(
     public dialogRef: MatDialogRef<ModalViewEmpresasComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: any
+    @Inject(MAT_DIALOG_DATA) public data: Empresas
   ) {
     this.empresas = data;
   }
 
-  closeModal() {
+  closeModal(): void {
     this.dialogRef.close();
   }
 }

@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 
 import { MenuComponent } from './menu.component';
 import { AuthService } from '../../services/auth.services';
+import { BrandingService } from '../../services/branding.service';
 
 describe('MenuComponent', () => {
   let component: MenuComponent;
@@ -12,6 +13,7 @@ describe('MenuComponent', () => {
   let authService: {
     activeTenantId: () => string;
     isSystemAdmin: () => boolean;
+    hasRole: () => boolean;
     logout: jasmine.Spy<() => Promise<void>>;
   };
 
@@ -21,6 +23,7 @@ describe('MenuComponent', () => {
     authService = {
       activeTenantId: () => 'tenant-test',
       isSystemAdmin: () => false,
+      hasRole: () => true,
       logout: jasmine.createSpy('logout').and.resolveTo(),
     };
     await TestBed.configureTestingModule({
@@ -28,6 +31,7 @@ describe('MenuComponent', () => {
       providers: [
         { provide: Router, useValue: router },
         { provide: AuthService, useValue: authService },
+        { provide: BrandingService, useValue: { config: () => ({ nome: 'COMMERCIUM', slogan: 'Teste', logo: 'assets/brand.svg' }) } },
       ],
       schemas: [NO_ERRORS_SCHEMA],
     })

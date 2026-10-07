@@ -1,5 +1,5 @@
 <div class="container-fluid p-3">
-  <mat-icon class="float-end hover" (click)="closeModal()">close</mat-icon>
+  <button mat-icon-button type="button" class="float-end" (click)="closeModal()" aria-label="Fechar saída de caixa" [disabled]="isSaving"><mat-icon>close</mat-icon></button>
 
   <h1 class="titulo">{{ isEditMode ? 'Editar Saída' : 'Nova Saída de Caixa' }}</h1>
   <h2 class="subtitulo">Preencha os dados da saída financeira.</h2>
@@ -52,14 +52,15 @@
       </mat-form-field>
     </div>
 
+    @if (errorMessage) { <div class="col-12 mb-3 text-danger" role="alert">{{ errorMessage }}</div> }
     <div class="col-12 mt-4 text-end">
-      <button type="button" class="botao-secundario me-2" (click)="closeModal()">Cancelar</button>
+      <button type="button" class="botao-secundario me-2" (click)="closeModal()" [disabled]="isSaving">Cancelar</button>
       <button
         type="submit"
         class="botao-primario"
-        [disabled]="formCashFlow.invalid"
+        [disabled]="formCashFlow.invalid || isSaving"
         >
-        {{ isEditMode ? 'Salvar Edição' : 'Registrar Saída' }}
+        {{ isSaving ? 'Salvando...' : (isEditMode ? 'Salvar edição' : 'Registrar saída') }}
       </button>
     </div>
   </form>

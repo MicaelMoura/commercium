@@ -1,65 +1,19 @@
 <app-menu></app-menu>
-
-<div class="container-fluid pt-3">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="titulo">Cadastro de Produtos</h1>
-            <h2 class="subtitulo">Gerencie produtos adicionando, editando ou excluindo</h2>
-        </div>
-    </div>
-
-    <div class="row mt-2">
-        <div class="col-8">
-            <mat-form-field>
-                <mat-label>Busca produto</mat-label>
-                <input matInput (keyup)="applyFilter($event)" placeholder="Digite sua busca" #input>
-            </mat-form-field>
-        </div>
-        <div class="col-4">
-            <app-button textButton="+ Cadastrar" class="float-end" (click)="openModalFormProduto(null)"></app-button>
-        </div>
-
-        <div class="col-12 shadow-lg">
-            <table mat-table [dataSource]="dataSource" matSort>
-            
-                <ng-container matColumnDef="nome">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Nome </th>
-                  <td mat-cell class="td-table" *matCellDef="let produto"> {{produto.nome}} </td>
-                </ng-container>
-
-                <ng-container matColumnDef="marca">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Marca </th>
-                    <td mat-cell class="td-table" *matCellDef="let produto"> {{produto.marca}} </td>
-                </ng-container>
-                
-                <ng-container matColumnDef="unidadeMedida">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Unidade de Medida </th>
-                    <td mat-cell class="td-table" *matCellDef="let produto"> {{produto.nomeUnidadeMedida}} </td>
-                </ng-container>
-
-                <ng-container matColumnDef="venda">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Valor Venda </th>
-                    <td mat-cell class="td-table" *matCellDef="let produto"> {{produto.valorUnitarioVenda | currency:'BRL'}} </td>
-                </ng-container>
-                
-                <ng-container matColumnDef="action">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"></th>
-                  <td mat-cell class="td-table" *matCellDef="let produto">
-                      <mat-icon class="icone-tabela" (click)="openModalViewProduto(produto)">visibility</mat-icon>
-                      <mat-icon class="icone-tabela" (click)="openModalFormProduto(produto)">edit</mat-icon>
-                      <mat-icon class="icone-tabela" (click)="deleteProduto(produto.firebaseId)">delete</mat-icon>
-                  </td>
-                </ng-container>
-            
-                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-            
-                <tr class="mat-row no-data" *matNoDataRow>
-                  <td class="mat-cell" colspan="5">Nenhum produto compatível com o filtro: "{{input.value}}"</td>
-                </tr>
-            </table>
-            
-            <mat-paginator [pageSizeOptions]="[5, 10, 25, 50]" aria-label="Quantidade de produtos por página"></mat-paginator>
-        </div>
-    </div>
-</div>
+<main class="management-page"><header class="page-header"><div><h1>Cadastro de produtos</h1><p>Gerencie os produtos da empresa atualmente selecionada.</p></div><app-button textButton="+ Cadastrar produto" (click)="openModalFormProduto()"></app-button></header>
+  <section class="management-card" aria-labelledby="products-title"><h2 id="products-title" class="visually-hidden">Produtos cadastrados</h2>
+    <mat-form-field class="search-field" appearance="outline"><mat-label>Buscar produto</mat-label><mat-icon matPrefix>search</mat-icon><input matInput type="search" (input)="applyFilter($event)" placeholder="Nome, marca ou unidade" aria-label="Buscar produto"></mat-form-field>
+    @if (isLoading) { <div class="state-panel" role="status"><mat-spinner diameter="36"></mat-spinner><span>Carregando produtos...</span></div> }
+    @else if (errorMessage) { <div class="state-panel error-state" role="alert"><mat-icon>error_outline</mat-icon><span>{{ errorMessage }}</span></div> }
+    @else { <div class="table-wrapper"><table mat-table [dataSource]="dataSource" matSort>
+      <ng-container matColumnDef="nome"><th mat-header-cell *matHeaderCellDef mat-sort-header>Nome</th><td mat-cell data-label="Nome" *matCellDef="let product">{{ product.nome }}</td></ng-container>
+      <ng-container matColumnDef="marca"><th mat-header-cell *matHeaderCellDef mat-sort-header>Marca</th><td mat-cell data-label="Marca" *matCellDef="let product">{{ product.marca }}</td></ng-container>
+      <ng-container matColumnDef="unidadeMedida"><th mat-header-cell *matHeaderCellDef mat-sort-header>Unidade</th><td mat-cell data-label="Unidade" *matCellDef="let product">{{ product.nomeUnidadeMedida }}</td></ng-container>
+      <ng-container matColumnDef="venda"><th mat-header-cell *matHeaderCellDef mat-sort-header>Valor de venda</th><td mat-cell data-label="Valor de venda" *matCellDef="let product">{{ product.valorUnitarioVenda | currency:'BRL' }}</td></ng-container>
+      <ng-container matColumnDef="action"><th mat-header-cell *matHeaderCellDef class="actions-header">Ações</th><td mat-cell data-label="Ações" *matCellDef="let product" class="actions-cell">
+        <button mat-icon-button type="button" (click)="openModalViewProduto(product)" [attr.aria-label]="'Ver ' + product.nome"><mat-icon>visibility</mat-icon></button>
+        <button mat-icon-button type="button" (click)="openModalFormProduto(product)" [attr.aria-label]="'Editar ' + product.nome"><mat-icon>edit</mat-icon></button>
+        <button mat-icon-button type="button" color="warn" (click)="deleteProduto(product)" [disabled]="deletingId !== null" [attr.aria-label]="'Excluir ' + product.nome"><mat-icon>{{ deletingId === product.firebaseId ? 'hourglass_empty' : 'delete' }}</mat-icon></button>
+      </td></ng-container><tr mat-header-row *matHeaderRowDef="displayedColumns"></tr><tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr><tr class="mat-row no-data" *matNoDataRow><td class="mat-cell" [attr.colspan]="displayedColumns.length">{{ filterValue ? 'Nenhum produto corresponde à busca.' : 'Nenhum produto cadastrado.' }}</td></tr>
+    </table></div><mat-paginator [pageSizeOptions]="[5, 10, 25, 50]" [pageSize]="10" showFirstLastButtons aria-label="Paginação de produtos"></mat-paginator> }
+  </section>
+</main>

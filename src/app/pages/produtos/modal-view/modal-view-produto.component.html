@@ -1,5 +1,5 @@
 <div class="container-fluid p-3">
-    <mat-icon class="float-end hover" (click)="closeModal()">close</mat-icon>
+    <button mat-icon-button type="button" class="float-end" (click)="closeModal()" aria-label="Fechar detalhes do produto"><mat-icon>close</mat-icon></button>
 
     <h1 class="titulo">Detalhes do Produto</h1>
     <h2 class="subtitulo">{{ produtoData.nome }} ({{ produtoData.marca }})</h2>
@@ -24,7 +24,7 @@
 
         <div class="detail-item">
             <span class="label">Peso no Codigo:</span>
-            <span class="value">{{ produtoData.pesoNoCodigo || 'N/A' }}</span>
+            <span class="value">{{ produtoData.pesoNoCodigo ? 'Sim' : 'Não' }}</span>
         </div>
 
         <div class="detail-item">

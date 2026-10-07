@@ -1,0 +1,22 @@
+<header class="dialog-header"><div><span class="eyebrow">MODELO REUTILIZÁVEL</span><h2>{{ data ? 'Editar mesa livre' : 'Desenhar mesa livre' }}</h2><p>Arraste os pontos para criar o contorno. O modelo poderá ser usado quantas vezes quiser.</p></div><button mat-icon-button type="button" aria-label="Fechar" mat-dialog-close><mat-icon>close</mat-icon></button></header>
+<mat-dialog-content>
+  <div class="designer-layout">
+    <section class="drawing-panel">
+      <svg #drawing viewBox="0 0 100 100" role="img" aria-label="Editor do formato da mesa" (pointermove)="mover($event, drawing)" (pointerup)="terminar()" (pointercancel)="terminar()">
+        <defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="#ddd8c9" stroke-width=".35"/></pattern></defs>
+        <rect width="100" height="100" fill="url(#grid)" rx="5" />
+        <polygon [attr.points]="pontos()" />
+        @for(point of vertices(); track $index){<circle [class.selected]="$index === selecionado()" [attr.cx]="point.x" [attr.cy]="point.y" r="3.2" tabindex="0" (pointerdown)="iniciar($event, $index)" (click)="selecionado.set($index)"><title>Vértice {{ $index + 1 }}</title></circle>}
+      </svg>
+      <div class="vertex-actions"><button mat-stroked-button type="button" (click)="adicionarVertice()" [disabled]="vertices().length >= 12"><mat-icon>add</mat-icon>Adicionar vértice</button><button mat-button type="button" (click)="removerVertice()" [disabled]="vertices().length <= 3"><mat-icon>remove</mat-icon>Remover selecionado</button><button mat-button type="button" (click)="restaurar()">Restaurar</button></div>
+      <small>{{ vertices().length }} vértices · mínimo 3, máximo 12</small>
+    </section>
+    <form [formGroup]="form" id="custom-table-form" (ngSubmit)="salvar()">
+      <mat-form-field appearance="outline"><mat-label>Nome do modelo</mat-label><input matInput formControlName="nome" maxlength="32"></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Lugares</mat-label><input matInput type="number" formControlName="lugares" min="1" max="30"></mat-form-field>
+      <div class="form-pair"><mat-form-field appearance="outline"><mat-label>Largura</mat-label><input matInput type="number" formControlName="largura" min="80" max="320"></mat-form-field><mat-form-field appearance="outline"><mat-label>Altura</mat-label><input matInput type="number" formControlName="altura" min="80" max="320"></mat-form-field></div>
+      <p class="muted">As dimensões definem o tamanho inicial. Cada cópia poderá ser redimensionada e girada no salão.</p>
+    </form>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end"><button mat-button type="button" mat-dialog-close>Cancelar</button><button mat-flat-button type="submit" form="custom-table-form" [disabled]="form.invalid">Salvar modelo</button></mat-dialog-actions>

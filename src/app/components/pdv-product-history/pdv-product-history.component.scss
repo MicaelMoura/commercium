@@ -12,7 +12,7 @@
     margin-bottom: 12px;
 
     span {
-      color: #075dcc;
+      color: #416e48;
       font-size: 0.72rem;
       font-weight: 800;
       letter-spacing: 0.08em;
@@ -20,14 +20,14 @@
 
     h2 {
       margin: 2px 0 0;
-      color: #10213f;
+      color: #304a37;
       font-size: 1rem;
     }
 
     > button {
       border: 0;
       background: transparent;
-      color: #52627b;
+      color: #76886b;
       border-radius: 50%;
       width: 38px;
       height: 38px;
@@ -42,7 +42,7 @@
   gap: 8px;
 
   button {
-    border: 1px solid #dce4ef;
+    border: 1px solid #e1e7d9;
     border-radius: 9px;
     background: #fff;
     min-height: 48px;
@@ -52,7 +52,7 @@
     gap: 12px;
     padding: 8px 12px;
     text-align: left;
-    color: #10213f;
+    color: #304a37;
 
     span {
       overflow: hidden;
@@ -62,7 +62,7 @@
 
     strong,
     mat-icon {
-      color: #075dcc;
+      color: #416e48;
     }
   }
 }

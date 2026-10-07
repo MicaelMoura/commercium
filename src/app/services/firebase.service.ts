@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
-import { Auth, getAuth } from 'firebase/auth';
-import { Functions, getFunctions } from 'firebase/functions';
+import { Auth, getAuth, connectAuthEmulator } from 'firebase/auth';
+import { Functions, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import {
   DocumentData,
   Firestore,
   Query,
   getFirestore,
+  connectFirestoreEmulator,
   onSnapshot,
 } from 'firebase/firestore';
 import { Observable } from 'rxjs';
@@ -21,6 +22,13 @@ export class FirebaseService {
   readonly auth: Auth = getAuth(this.app);
   readonly firestore: Firestore = getFirestore(this.app);
   readonly functions: Functions = getFunctions(this.app, 'southamerica-east1');
+  constructor() {
+    if ('emulators' in environment && environment.emulators === true) {
+      connectAuthEmulator(this.auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+      connectFirestoreEmulator(this.firestore, '127.0.0.1', 8080);
+      connectFunctionsEmulator(this.functions, '127.0.0.1', 5001);
+    }
+  }
 }
 
 export function collectionData$<T>(

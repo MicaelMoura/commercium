@@ -1,11 +1,13 @@
 <app-menu></app-menu>
 
-<main class="pdv-page">
+<main class="pdv-page management-page">
+  <header class="page-header"><div><span class="eyebrow">UM BOM DIA PARA VENDER</span><h1>Frente de caixa</h1><p>{{ nomeEmpresa }} · Atendimento no balcão</p></div><a mat-stroked-button routerLink="/comandas"><mat-icon>table_restaurant</mat-icon>Mesas e comandas</a></header>
+  @if (pendente()) {<div class="notice" role="alert">A confirmação da venda está pendente. Os dados foram preservados para evitar duplicidade. <button mat-stroked-button (click)="finalizarVenda()" [disabled]="carregando() || !pwa.online()">Verificar venda</button></div>}
   <div class="pdv-grid">
     <section class="workspace-card">
       <header class="page-title">
         <span aria-hidden="true"></span>
-        <h1>Frente de caixa</h1>
+        <h2>Adicionar produtos</h2>
       </header>
 
       <div class="product-search">
@@ -13,6 +15,7 @@
           #productSearch
           type="search"
           aria-label="Pesquisar produto"
+          [readonly]="!!pendente()"
           #autocompleteTrigger="matAutocompleteTrigger"
           placeholder="Pesquisar produto por nome ou código"
           [formControl]="searchControl"
@@ -24,6 +27,9 @@
           (modeChange)="selecionarModoPesquisa($event)">
         </app-pdv-search-mode-toggle>
       </div>
+      <p class="search-hint">Leia um código de barras ou busque pelo nome. Use <b>3x produto</b> para quantidades.</p>
+      @if (erroBusca()) {<p class="notice" role="alert">{{ erroBusca() }}</p>}
+      <mat-checkbox [checked]="usarPeso()" (change)="usarPeso.set($event.checked)" [disabled]="!!pendente()">Usar peso da balança conectada</mat-checkbox>
 
       <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onProdutoSelecionado($event.option.value)">
         @for (produto of produtosFiltrados$ | async; track produto.firebaseId) {
@@ -93,7 +99,7 @@
 
       <footer class="status-bar">
         <span><mat-icon>person</mat-icon>Operador: {{ nomeOperador }}</span>
-        <span><mat-icon>point_of_sale</mat-icon>Terminal: Caixa 01</span>
+        <span><mat-icon>{{ pwa.online() ? 'wifi' : 'wifi_off' }}</mat-icon>{{ pwa.online() ? 'Conectado' : 'Sem conexão' }} · F4 para buscar</span>
       </footer>
     </section>
 
@@ -103,6 +109,8 @@
       [saleId]="idVenda()"
       [startedAt]="inicioVenda()"
       [loading]="carregando()"
+      [locked]="!!pendente()"
+      [offline]="!pwa.online()"
       (removeItem)="removerItem($event)"
       (clearSale)="limparVenda()"
       (finalizeSale)="exibirPagamentoModal()">

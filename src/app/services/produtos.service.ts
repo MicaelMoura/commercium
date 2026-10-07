@@ -31,10 +31,12 @@ export class ProdutosService {
   ) {}
 
   private productsCollection(empresaId: string) {
+    if (!empresaId) throw new Error('Selecione uma empresa.');
     return collection(this.firebase.firestore, 'business', empresaId, 'products');
   }
 
   private stockCollection(empresaId: string) {
+    if (!empresaId) throw new Error('Selecione uma empresa.');
     return collection(this.firebase.firestore, 'business', empresaId, 'stock');
   }
 
@@ -63,12 +65,11 @@ export class ProdutosService {
           const stockQuery = query(
             this.stockCollection(empresaId),
             where('produtoId', '==', produto.firebaseId),
-            limit(1),
           );
           return collectionData$<Stock>(stockQuery, 'id').pipe(
             map((stocks) => ({
               ...produto,
-              estoqueQtd: stocks[0]?.quantidade ?? 0,
+              estoqueQtd: stocks.reduce((total, stock) => total + Number(stock.quantidade || 0), 0),
               stockId: stocks[0]?.id ?? null,
             })),
           );

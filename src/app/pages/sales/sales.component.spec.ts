@@ -37,6 +37,8 @@ describe('SalesComponent - modos de pesquisa', () => {
       dialog as never,
       {} as never,
       {} as never,
+      {} as never,
+      { online: () => true } as never,
     );
   });
 

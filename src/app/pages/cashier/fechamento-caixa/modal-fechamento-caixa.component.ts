@@ -1,4 +1,5 @@
-import { Component, OnInit, Inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, Inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -6,6 +7,7 @@ import { CashFlowService } from '../../../services/cashflow.service';
 import { ResumoCaixa } from '../../../interfaces/resumo-caixa';
 import { FechamentoCaixa } from '../../../interfaces/fechamento-caixa';
 import { AuthService } from '../../../services/auth.services';
+import { Timestamp } from 'firebase/firestore';
 
 @Component({
     selector: 'app-modal-fechamento-caixa',
@@ -28,7 +30,8 @@ export class ModalFechamentoCaixaComponent implements OnInit {
     private cashFlowService: CashFlowService,
     private snackBar: MatSnackBar,
     private authService: AuthService,
-    @Inject(MAT_DIALOG_DATA) public data: { empresaId: string, dataAbertura: Date, valorTrocoInicial: number }
+    private destroyRef: DestroyRef,
+    @Inject(MAT_DIALOG_DATA) public data: { empresaId: string, dataAbertura: Date | Timestamp, valorTrocoInicial: number }
   ) { }
 
   ngOnInit(): void {
@@ -36,7 +39,7 @@ export class ModalFechamentoCaixaComponent implements OnInit {
     this.loadCaixaSummary();
     
     // Assina as mudanças do valor contado para calcular a diferença em tempo real
-    this.fechamentoForm.controls['valorContado'].valueChanges.subscribe(valor => {
+    this.fechamentoForm.controls['valorContado'].valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(valor => {
       this.calculateDiferenca(valor);
     });
   }
@@ -55,17 +58,12 @@ export class ModalFechamentoCaixaComponent implements OnInit {
     this.carregando = true;
     try {
 
-      let dataAbertura: Date = this.data.dataAbertura as Date;
-      
-      if (typeof (this.data.dataAbertura as any).toDate === 'function') {
-        dataAbertura = (this.data.dataAbertura as any).toDate();
-      }
+      const dataAbertura = this.data.dataAbertura instanceof Timestamp ? this.data.dataAbertura.toDate() : this.data.dataAbertura;
       // Obtém o resumo de movimentações desde a abertura
       this.resumoCaixa = await this.cashFlowService.getCashFlowSummary(
         this.data.empresaId, 
-        this.data.dataAbertura
+        dataAbertura
       );
-      console.log(this.data.dataAbertura);
 
       // Total esperado no caixa (Apenas dinheiro, troco e entradas/saídas de dinheiro)
       // O valor contado pelo operador é sempre em dinheiro.
@@ -115,7 +113,7 @@ export class ModalFechamentoCaixaComponent implements OnInit {
     const fechamentoData: FechamentoCaixa = {
       empresaId: this.data.empresaId,
       operadorUid: operadorUid,
-      dataAbertura: this.data.dataAbertura, // Data/Hora do último fechamento
+      dataAbertura: this.data.dataAbertura instanceof Timestamp ? this.data.dataAbertura.toDate() : this.data.dataAbertura,
       dataFechamento: new Date(),
       status: 'FECHADO',
       valorInicialTroco: this.data.valorTrocoInicial,

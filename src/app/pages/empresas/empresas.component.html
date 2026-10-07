@@ -1,59 +1,23 @@
 <app-menu></app-menu>
-
-<div class="container-fluid pt-3">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="titulo">Cadastro de Empresas</h1>
-            <h2 class="subtitulo">Gerencie empresas adicionando, editando ou excluindo</h2>
-        </div>
-    </div>
-
-    <div class="row mt-2">
-        <div class="col-8">
-            <mat-form-field>
-                <mat-label>Busca empresa</mat-label>
-                <input matInput (keyup)="applyFilter($event)" placeholder="Digite sua busca" #input>
-            </mat-form-field>
-        </div>
-        <div class="col-4">
-            <app-button textButton="+ Cadastrar" class="float-end" (click)="openCompanyFormModal(null)"></app-button>
-        </div>
-
-        <div class="col-12 shadow-lg">
-            <table mat-table [dataSource]="dataSource" matSort>
-                <ng-container matColumnDef="id">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Id </th>
-                  <td mat-cell class="td-table" *matCellDef="let company"> {{company.firebaseId}} </td>
-                </ng-container>
-
-                <ng-container matColumnDef="name">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Nome </th>
-                  <td mat-cell class="td-table" *matCellDef="let company"> {{company.nomeFantasia}} </td>
-                </ng-container>
-            
-                <ng-container matColumnDef="cnpj">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> CNPJ </th>
-                  <td mat-cell class="td-table" *matCellDef="let company"> {{company.cnpj}} </td>
-                </ng-container>
-
-                <ng-container matColumnDef="action">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"></th>
-                  <td mat-cell class="td-table" *matCellDef="let company">
-                      <mat-icon class="icone-tabela" (click)="openModalViewCompany(company)">visibility</mat-icon>
-                      <mat-icon class="icone-tabela" (click)="openCompanyFormModal(company)">edit</mat-icon>
-                      <mat-icon class="icone-tabela" (click)="deleteCompany(company.firebaseId)">delete</mat-icon>
-                  </td>
-                </ng-container>
-            
-                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-            
-                <tr class="mat-row no-data" *matNoDataRow>
-                    <td class="mat-cell" colspan="4">Nenhuma informação compatível com o filtro: "{{input.value}}"</td>
-                </tr>
-            </table>
-            
-            <mat-paginator [pageSizeOptions]="[5, 10, 25, 50]" aria-label="Quantidade de empresas por página"></mat-paginator>
-        </div>
-    </div>
-</div>
+<main class="management-page">
+  <header class="page-header"><div><h1>Cadastro de empresas</h1><p>Gerencie as empresas disponíveis na plataforma.</p></div><app-button textButton="+ Cadastrar empresa" (click)="openCompanyFormModal()"></app-button></header>
+  <section class="management-card" aria-labelledby="companies-title">
+    <h2 id="companies-title" class="visually-hidden">Empresas cadastradas</h2>
+    <mat-form-field class="search-field" appearance="outline"><mat-label>Buscar empresa</mat-label><mat-icon matPrefix>search</mat-icon><input matInput type="search" (input)="applyFilter($event)" placeholder="Nome ou CNPJ" aria-label="Buscar empresa"></mat-form-field>
+    @if (isLoading) { <div class="state-panel" role="status"><mat-spinner diameter="36"></mat-spinner><span>Carregando empresas...</span></div> }
+    @else if (errorMessage) { <div class="state-panel error-state" role="alert"><mat-icon>error_outline</mat-icon><span>{{ errorMessage }}</span></div> }
+    @else {
+      <div class="table-wrapper"><table mat-table [dataSource]="dataSource" matSort>
+        <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef mat-sort-header>Nome</th><td mat-cell data-label="Nome" *matCellDef="let company">{{ company.nomeFantasia }}</td></ng-container>
+        <ng-container matColumnDef="cnpj"><th mat-header-cell *matHeaderCellDef mat-sort-header>CNPJ</th><td mat-cell data-label="CNPJ" *matCellDef="let company">{{ company.cnpj }}</td></ng-container>
+        <ng-container matColumnDef="action"><th mat-header-cell *matHeaderCellDef class="actions-header">Ações</th><td mat-cell data-label="Ações" *matCellDef="let company" class="actions-cell">
+          <button mat-icon-button type="button" (click)="openModalViewCompany(company)" [attr.aria-label]="'Ver ' + company.nomeFantasia"><mat-icon>visibility</mat-icon></button>
+          <button mat-icon-button type="button" (click)="openCompanyFormModal(company)" [attr.aria-label]="'Editar ' + company.nomeFantasia"><mat-icon>edit</mat-icon></button>
+          <button mat-icon-button type="button" color="warn" (click)="deleteCompany(company)" [disabled]="deletingId !== null || company.firebaseId === empresaIdAtual()" [attr.aria-label]="company.firebaseId === empresaIdAtual() ? 'A empresa ativa não pode ser excluída' : 'Excluir ' + company.nomeFantasia"><mat-icon>{{ deletingId === company.firebaseId ? 'hourglass_empty' : 'delete' }}</mat-icon></button>
+        </td></ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr><tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        <tr class="mat-row no-data" *matNoDataRow><td class="mat-cell" [attr.colspan]="displayedColumns.length">{{ filterValue ? 'Nenhuma empresa corresponde à busca.' : 'Nenhuma empresa cadastrada.' }}</td></tr>
+      </table></div><mat-paginator [pageSizeOptions]="[5, 10, 25, 50]" [pageSize]="10" showFirstLastButtons aria-label="Paginação de empresas"></mat-paginator>
+    }
+  </section>
+</main>

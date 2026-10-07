@@ -1,4 +1,14 @@
-import { NgModule } from '@angular/core';
+import { NgModule, isDevMode, LOCALE_ID } from '@angular/core';
+import { registerLocaleData } from '@angular/common';
+import localePt from '@angular/common/locales/pt';
+import { ServiceWorkerModule } from '@angular/service-worker';
+import { A11yModule } from '@angular/cdk/a11y';
+import { ComandasComponent } from './pages/comandas/comandas.component';
+import { SalaoComponent } from './pages/salao/salao.component';
+import { DispositivosComponent } from './pages/dispositivos/dispositivos.component';
+import { SenhasComponent } from './pages/senhas/senhas.component';
+import { MesaPersonalizadaDialogComponent } from './pages/salao/mesa-personalizada-dialog.component';
+import { PersonalizacaoComponent } from './pages/personalizacao/personalizacao.component';
 import { BrowserModule } from '@angular/platform-browser';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -37,6 +47,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTableModule} from '@angular/material/table';
 import { MatSortModule} from '@angular/material/sort';
 import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatPaginatorIntl } from '@angular/material/paginator';
+import { paginacaoPortugues } from './components/management-table';
 import { ModalViewUserComponent } from './pages/users/modal-view-user/modal-view-user.component';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
@@ -51,6 +63,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTabsModule } from '@angular/material/tabs';
 import { ConfirmationDialogComponent } from './components/confirmation-dialog/confirmation-dialog.component';
 import { PdvActionCardComponent } from './components/pdv-action-card/pdv-action-card.component';
 import { PdvProductCardComponent } from './components/pdv-product-card/pdv-product-card.component';
@@ -59,6 +72,7 @@ import { SaleSummaryComponent } from './components/sale-summary/sale-summary.com
 import { PdvSearchModeToggleComponent } from './components/pdv-search-mode-toggle/pdv-search-mode-toggle.component';
 
 
+registerLocaleData(localePt);
 const BR_DATE_FORMATS = {
   parse: {
     dateInput: 'DD/MM/YYYY',
@@ -74,6 +88,7 @@ const BR_DATE_FORMATS = {
 
 @NgModule({
   declarations: [
+    ComandasComponent, SalaoComponent, DispositivosComponent, SenhasComponent, MesaPersonalizadaDialogComponent, PersonalizacaoComponent,
     AppComponent,
     ButtonComponent,
     LoginComponent,
@@ -109,6 +124,8 @@ const BR_DATE_FORMATS = {
     ConfirmationDialogComponent
   ],
   imports: [
+    A11yModule,
+    ServiceWorkerModule.register('ngsw-worker.js', { enabled: !isDevMode(), registrationStrategy: 'registerWhenStable:30000' }),
     BrowserModule,
     AppRoutingModule,
     FormsModule,
@@ -131,12 +148,15 @@ const BR_DATE_FORMATS = {
     MatCheckboxModule,
     MatButtonModule,
     MatSnackBarModule,
+    MatTabsModule,
 
     NoopAnimationsModule,
     NgxMaskDirective, 
     NgxMaskPipe, 
   ],
   providers: [
+    { provide: MatPaginatorIntl, useFactory: paginacaoPortugues },
+    { provide: LOCALE_ID, useValue: 'pt-BR' },
     provideNgxMask(),
     { provide: MAT_DATE_LOCALE, useValue: 'pt-BR' },
     {

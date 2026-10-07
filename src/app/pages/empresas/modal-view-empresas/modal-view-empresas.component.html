@@ -1,32 +1,33 @@
 <div class="container-fluid p-3">
-    <mat-icon class="float-end hover" (click)="closeModal()">close</mat-icon>
+    <button mat-icon-button type="button" class="float-end" (click)="closeModal()" aria-label="Fechar detalhes da empresa"><mat-icon>close</mat-icon></button>
 
     <h1 class="titulo">Detalhes das Empresas</h1>
     <h2 class="subtitulo">Visão detalhada das empresas</h2>
 
     <div class="row mt-3">
-        <div class="col-6">
+        <div class="col-12 col-md-6">
             <h4 class="titulo-informacao">Razão Social</h4>
             <p class="informacao">{{empresas.razaoSocial}}</p>
         </div>
-        <div class="col-6">
+        <div class="col-12 col-md-6">
             <h4 class="titulo-informacao">CNPJ</h4>
             <p class="informacao">{{empresas.cnpj}}</p>
         </div>
-        <div class="col-6">
+        <div class="col-12 col-md-6">
             <h4 class="titulo-informacao">Nome fantasia</h4>
             <p class="informacao">{{empresas.nomeFantasia}}</p>
         </div>
-        <div class="col-6">
+        <div class="col-12 col-md-6">
             <h4 class="titulo-informacao">Telefone</h4>
             <p class="informacao">{{empresas.telefone}}</p>
         </div>
-        <div class="col-6">
+        <div class="col-12 col-md-6">
             <h4 class="titulo-informacao">Endereço</h4>
             <p class="informacao">{{empresas.endereco}}</p>
         </div>
-        <div class="col-6">
+        <div class="col-12 col-md-6">
             <h4 class="titulo-informacao">Bairro</h4>
             <p class="informacao">{{empresas.bairro}}</p>
         </div>
+    </div>
 </div>

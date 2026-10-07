@@ -1,69 +1,11 @@
-<h2 mat-dialog-title>Finalizar Venda</h2>
-
+<h2 mat-dialog-title>Receber pagamento</h2>
 <mat-dialog-content>
-  <div class="resumo-box mb-3">
-    <div class="d-flex justify-content-between">
-      <span>Total da Venda:</span>
-      <strong>{{ data.total | currency:'BRL' }}</strong>
-    </div>
-    <div class="d-flex justify-content-between text-success">
-      <span>Total Pago:</span>
-      <strong>{{ totalPago() | currency:'BRL' }}</strong>
-    </div>
-    @if (saldoRestante() > 0) {
-      <div class="d-flex justify-content-between text-danger">
-        <span>Saldo Restante:</span>
-        <strong class="fs-5">{{ saldoRestante() | currency:'BRL' }}</strong>
-      </div>
-    }
-  </div>
-
-  <mat-form-field appearance="outline" class="w-100">
-    <mat-label>Valor Recebido (R$)</mat-label>
-    <input matInput type="number"
-      [value]="valorRecebido() === 0 ? '' : valorRecebido()"
-      (input)="valorRecebido.set($any($event.target).value)"
-      placeholder="0,00">
-    </mat-form-field>
-
-    <div class="formas-grid mb-3">
-      <button mat-stroked-button (click)="adicionarPagamento('Dinheiro')">💵 Dinheiro</button>
-      <button mat-stroked-button (click)="adicionarPagamento('Cartão Crédito')">💳 Crédito</button>
-      <button mat-stroked-button (click)="adicionarPagamento('Cartão Débito')">💳 Débito</button>
-      <button mat-stroked-button (click)="adicionarPagamento('PIX')">📱 PIX</button>
-    </div>
-
-    @if (pagamentosRealizados().length > 0) {
-      <div class="pagamentos-lista mb-3">
-        <h6>Pagamentos:</h6>
-        @for (p of pagamentosRealizados(); track p; let i = $index) {
-          <div class="p-item d-flex justify-content-between align-items-center">
-            <span>{{ p.forma }}</span>
-            <span>{{ p.valor | currency:'BRL' }}
-              <button mat-icon-button color="warn" (click)="removerPagamento(i)">
-                <mat-icon>delete</mat-icon>
-              </button>
-            </span>
-          </div>
-        }
-      </div>
-    }
-
-    @if (troco() > 0) {
-      <div class="troco-display alert alert-success">
-        <strong>TROCO: {{ troco() | currency:'BRL' }}</strong>
-      </div>
-    }
-  </mat-dialog-content>
-
-  <mat-dialog-actions align="end">
-    <button mat-button class="botao" (click)="cancelar()" >Cancelar (Esc)</button>
-    <span class="spacer"></span>
-    <button mat-raised-button
-      color="primary"
-      class="botao"
-      (click)="confirmar()"
-      [disabled]="!podeConfirmar()">
-      Confirmar Venda (Enter)
-    </button>
-  </mat-dialog-actions>
+  <div class="resumo-box mb-3"><div class="d-flex justify-content-between"><span>Total da venda</span><strong>{{ data.total | currency:'BRL' }}</strong></div><div class="d-flex justify-content-between mt-2"><span>Registrado</span><strong>{{ totalPago() | currency:'BRL' }}</strong></div><div class="d-flex justify-content-between mt-2"><span>Falta receber</span><strong>{{ saldoRestante() | currency:'BRL' }}</strong></div></div>
+  <p class="notice">Cartão e Pix: confirme a aprovação na maquininha ou no banco antes de registrar. Esta tela não realiza cobranças automáticas.</p>
+  <mat-form-field appearance="outline" class="w-100"><mat-label>Valor recebido (R$)</mat-label><input matInput type="number" min=".01" step=".01" [formControl]="valor"><mat-error>Informe um valor válido.</mat-error></mat-form-field>
+  <div class="formas-grid mb-3"><button mat-stroked-button (click)="adicionarPagamento('dinheiro')" [disabled]="valor.invalid"><mat-icon>payments</mat-icon>Dinheiro</button><button mat-stroked-button (click)="adicionarPagamento('credito')" [disabled]="valor.invalid"><mat-icon>credit_card</mat-icon>Crédito</button><button mat-stroked-button (click)="adicionarPagamento('debito')" [disabled]="valor.invalid"><mat-icon>credit_card</mat-icon>Débito</button><button mat-stroked-button (click)="adicionarPagamento('pix')" [disabled]="valor.invalid"><mat-icon>qr_code</mat-icon>Pix</button></div>
+  @if(erro()){<p class="error-state" role="alert">{{ erro() }}</p>}
+  @for(p of pagamentosRealizados(); track $index){<div class="p-item d-flex justify-content-between align-items-center"><span>{{ labels[p.forma] }}</span><span>{{ p.valor | currency:'BRL' }}<button mat-icon-button [attr.aria-label]="'Remover pagamento em ' + labels[p.forma]" (click)="removerPagamento($index)"><mat-icon>close</mat-icon></button></span></div>}
+  @if(troco() > 0){<div class="troco-display alert alert-success mt-3">Troco: <strong>{{ troco() | currency:'BRL' }}</strong></div>}
+</mat-dialog-content>
+<mat-dialog-actions align="end"><button mat-button (click)="cancelar()">Voltar</button><button mat-flat-button (click)="confirmar()" [disabled]="!podeConfirmar()">Confirmar recebimento</button></mat-dialog-actions>

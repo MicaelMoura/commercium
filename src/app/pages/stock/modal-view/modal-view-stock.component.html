@@ -1,11 +1,11 @@
 <div class="container-fluid p-3">
-    <mat-icon class="float-end hover" (click)="closeModal()">close</mat-icon>
+    <button mat-icon-button type="button" class="float-end" (click)="closeModal()" aria-label="Fechar detalhes do estoque"><mat-icon>close</mat-icon></button>
 
     <h1 class="titulo">Detalhes da Movimentação de Estoque</h1>
     <h2 class="subtitulo">Visão detalhada do registro de estoque</h2>
 
     <div class="row mt-3">
-        <div class="col-6">
+        <div class="col-12 col-md-6">
             <h4 class="titulo-informacao">Produto</h4>
             <p class="informacao">{{stockData.produtoNome}}</p>
             
@@ -16,7 +16,7 @@
             <p class="informacao">{{stockData.quantidade}}</p>
         </div>
         
-        <div class="col-6">
+        <div class="col-12 col-md-6">
             <h4 class="titulo-informacao">Tipo de Movimento</h4>
             <p class="informacao">
                 {{stockData.tipoMovimento === 'ENTRADA' ? 'Entrada de Estoque' : 'Ajuste de Estoque (Saída/Perda)'}}

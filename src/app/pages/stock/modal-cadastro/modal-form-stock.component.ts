@@ -1,220 +1,72 @@
-import { Component, OnInit, Inject } from '@angular/core';
+import { Component, DestroyRef, Inject, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { combineLatest } from 'rxjs';
+import { Fornecedor } from '../../../interfaces/fornecedor';
+import { Produto } from '../../../interfaces/produto';
 import { Stock } from '../../../interfaces/stock';
+import { FornecedoresService } from '../../../services/fornecedores.service';
+import { ProdutosService } from '../../../services/produtos.service';
 import { StockService } from '../../../services/stock.service';
-import { FornecedoresService } from '../../../services/fornecedores.service'; 
-import { Fornecedor } from '../../../interfaces/fornecedor'; 
-import { ProdutosService } from '../../../services/produtos.service'; 
-import { Produto } from '../../../interfaces/produto'; 
-import { Subscription, combineLatest} from 'rxjs';
-import { AuthService } from '../../../services/auth.services';
 
-@Component({
-    selector: 'app-modal-form-stock',
-    templateUrl: './modal-form-stock.component.html',
-    styleUrls: ['./modal-form-stock.component.scss'],
-    standalone: false
-})
+export interface StockFormDialogData { stockEntry: Stock | null; empresaId: string; }
+interface StockFormValue { produtoId: string; fornecedorId: string; quantidade: number; validade: string | null; tipoMovimento: 'ENTRADA' | 'AJUSTE'; motivoAjuste: string | null; }
+
+@Component({ selector: 'app-modal-form-stock', templateUrl: './modal-form-stock.component.html', styleUrls: ['./modal-form-stock.component.scss'], standalone: false })
 export class ModalFormStockComponent implements OnInit {
-
   formStock!: FormGroup;
+  readonly motivosAjuste = ['Perda', 'Estragado', 'Vencimento', 'Inventário'];
   isEditMode = false;
-  
-  // Dados de apoio para os selects
+  isSaving = false;
+  isLoadingOptions = true;
+  errorMessage = '';
   listFornecedores: Fornecedor[] = [];
-  listProdutos: Produto[] = []; // Deve ser carregado via ProdutosService
-  
-  motivosAjuste: string[] = ['Perda', 'Estragado', 'Vencimento', 'Inventário'];
-  
-  // Variáveis do modal
-  stockEntryId: string | null = null;
-  
-  private dataSubscription: Subscription = new Subscription();
-  
-  // INJEÇÃO DE DEPENDÊNCIAS
-  constructor(
-    private fb: FormBuilder,
-    public dialogRef: MatDialogRef<ModalFormStockComponent>,
-    private stockService: StockService,
-    private fornecedoresService: FornecedoresService,
-    private produtosService: ProdutosService, 
-    private snackBar: MatSnackBar,
-    private authService: AuthService,
-    @Inject(MAT_DIALOG_DATA) public data: { stockEntry: Stock | null }
-  ) {
-    if (data.stockEntry) {
-      this.isEditMode = true;
-      this.stockEntryId = data.stockEntry.id || null;
-    }
-  }
+  listProdutos: Produto[] = [];
 
-  public empresaIdAtual = this.authService.activeTenantId; 
+  constructor(private fb: FormBuilder, public dialogRef: MatDialogRef<ModalFormStockComponent, boolean>, private stockService: StockService,
+    private fornecedoresService: FornecedoresService, private produtosService: ProdutosService, private snackBar: MatSnackBar,
+    private destroyRef: DestroyRef, @Inject(MAT_DIALOG_DATA) public data: StockFormDialogData) {}
 
   ngOnInit(): void {
-    this.buildForm();
-    this.loadInitialData();
-
-    // Lógica para preencher o formulário em modo de Edição
-    this.preencherFormModEdit();
-    
-    // Lógica para esconder/mostrar o campo 'motivoAjuste'
-    this.esconderCampoMotivoAjuste();
+    this.formStock = this.fb.group({ produtoId: ['', Validators.required], fornecedorId: ['', Validators.required],
+      quantidade: [null, [Validators.required, Validators.min(0.001)]], validade: [null], tipoMovimento: ['ENTRADA', Validators.required], motivoAjuste: [null] });
+    if (this.data.stockEntry) { this.isEditMode = true; this.formStock.patchValue(this.data.stockEntry); }
+    this.toggleAdjustmentField(this.formStock.controls['tipoMovimento'].value);
+    this.formStock.controls['tipoMovimento'].valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((value) => this.toggleAdjustmentField(value));
+    if (!this.data.empresaId) { this.isLoadingOptions = false; this.errorMessage = 'Nenhuma empresa ativa foi encontrada.'; return; }
+    combineLatest([this.fornecedoresService.getAllFornecedores(this.data.empresaId), this.produtosService.getAllProdutos(this.data.empresaId)])
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: ([suppliers, products]) => { this.listFornecedores = suppliers; this.listProdutos = products; this.isLoadingOptions = false; },
+        error: (error: unknown) => { console.error('Não foi possível carregar as opções de estoque.', error); this.errorMessage = 'Não foi possível carregar produtos e fornecedores.'; this.isLoadingOptions = false; },
+      });
   }
 
-
-  private preencherFormModEdit() {
-    if (this.isEditMode && this.data.stockEntry) {
-            
-      const stockToPatch = { ...this.data.stockEntry } as any;
-      
-      // Aplica os valores corrigidos
-      this.formStock.patchValue(stockToPatch);
-      
-      this.toggleAdjustmentField(this.data.stockEntry.tipoMovimento);
-    }
+  private toggleAdjustmentField(tipo: string | null): void {
+    const control = this.formStock.controls['motivoAjuste'];
+    if (tipo === 'AJUSTE') control.setValidators(Validators.required); else { control.clearValidators(); control.setValue(null, { emitEvent: false }); }
+    control.updateValueAndValidity({ emitEvent: false });
   }
 
-  private esconderCampoMotivoAjuste() {
-    this.formStock.get('tipoMovimento')?.valueChanges.subscribe(value => {
-      this.toggleAdjustmentField(value);
-    });
+  async saveStockEntry(): Promise<void> {
+    this.errorMessage = '';
+    if (this.formStock.invalid || this.isSaving || this.isLoadingOptions) { this.formStock.markAllAsTouched(); return; }
+    const raw = this.formStock.getRawValue() as StockFormValue;
+    const product = this.listProdutos.find((item) => item.firebaseId === raw.produtoId);
+    const supplier = this.listFornecedores.find((item) => item.id === raw.fornecedorId);
+    if (!product || !supplier) { this.errorMessage = 'Selecione um produto e um fornecedor válidos.'; return; }
+    const payload: Omit<Stock, 'id'> = { produtoId: raw.produtoId, produtoNome: product.nome, fornecedorId: raw.fornecedorId,
+      fornecedorNome: supplier.fantasyName, quantidade: Number(raw.quantidade), validade: raw.validade ?? '', tipoMovimento: raw.tipoMovimento,
+      motivoAjuste: raw.motivoAjuste ?? undefined, dataMovimento: this.data.stockEntry?.dataMovimento ?? new Date() };
+    this.isSaving = true;
+    try {
+      if (this.isEditMode) { if (!this.data.stockEntry?.id) throw new Error('Identificador da movimentação não encontrado.'); await this.stockService.updateStockEntry(this.data.empresaId, this.data.stockEntry.id, payload); }
+      else { await this.stockService.addStockEntry(this.data.empresaId, payload); }
+      this.snackBar.open(`Movimentação ${this.isEditMode ? 'atualizada' : 'cadastrada'} com sucesso.`, 'Fechar', { duration: 4000 }); this.dialogRef.close(true);
+    } catch (error: unknown) { console.error('Não foi possível salvar a movimentação.', error); this.errorMessage = error instanceof Error ? error.message : 'Não foi possível salvar a movimentação.'; }
+    finally { this.isSaving = false; }
   }
 
-  ngOnDestroy(): void {
-    this.dataSubscription.unsubscribe();
-  }
-
-  /**
-   * Configura o formulário reativo
-   */
-  buildForm() {
-    // Inicializa o formulário com os campos obrigatórios
-    this.formStock = this.fb.group({
-      produtoId: [null, [Validators.required]],
-      fornecedorId: [null, [Validators.required]],
-      quantidade: [null, [Validators.required, Validators.min(1)]],
-      validade: [null], // Validade não é obrigatória, mas recomendada
-      tipoMovimento: ['ENTRADA', [Validators.required]], // Padrão: ENTRADA
-      motivoAjuste: [null], // Campo condicional
-    });
-  }
-  
-  /**
-   * Carrega Fornecedores e Produtos
-   */
-  loadInitialData() {
-    const empresaId = this.empresaIdAtual();
-    if (!empresaId){
-        this.snackBar.open('Não é possível adicionar/editar. ID da empresa inválido.', 'Fechar', { duration: 3000 });
-        return;
-    }
-    const fornecedores$ = this.fornecedoresService.getAllFornecedores(empresaId);
-    
-    const produtos$ = this.produtosService.getAllProdutos(empresaId);
-
-    this.dataSubscription = combineLatest([fornecedores$, produtos$]).subscribe({
-      next: ([fornecedores, produtos]) => {
-        this.listFornecedores = fornecedores;
-        this.listProdutos = produtos;
-      },
-      error: (err) => {
-        console.error('Erro ao carregar dados iniciais:', err);
-        this.snackBar.open('Erro ao carregar lista de produtos/fornecedores.', 'Fechar', { duration: 5000 });
-      }
-    });
-  }
-
-  /**
-   * Alterna a obrigatoriedade e visibilidade do campo 'motivoAjuste'
-   */
-  toggleAdjustmentField(tipo: 'ENTRADA' | 'AJUSTE' | string | null) {
-    const motivoControl = this.formStock.get('motivoAjuste');
-    if (tipo === 'AJUSTE') {
-      motivoControl?.setValidators(Validators.required);
-    } else {
-      motivoControl?.clearValidators();
-      motivoControl?.setValue(null);
-    }
-    motivoControl?.updateValueAndValidity();
-  }
-  
-  /**
-   * Obtém o nome do Produto e Fornecedor selecionado
-   */
-  getNamesFromIds(formData: any) {
-    const produto = this.listProdutos.find(p => p.firebaseId === formData.produtoId);
-    const fornecedor = this.listFornecedores.find(f => f.id === formData.fornecedorId);
-    
-    return {
-      produtoNome: produto ? produto.nome : 'Produto Desconhecido',
-      fornecedorNome: fornecedor ? fornecedor.fantasyName : 'Fornecedor Desconhecido',
-    };
-  }
-
-  /**
-   * Salva ou Edita o registro de estoque
-   */
-  saveStockEntry() {
-
-    const empresaId = this.empresaIdAtual();
-    if (!empresaId){
-        this.snackBar.open('Não é possível adicionar/editar. ID da empresa inválido.', 'Fechar', { duration: 3000 });
-        return;
-    }
-    if (this.formStock.invalid) {
-      this.formStock.markAllAsTouched();
-      this.snackBar.open('Preencha todos os campos obrigatórios!', 'Fechar', { duration: 3000 });
-      return;
-    }
-
-    const formData = this.formStock.value;
-    const names = this.getNamesFromIds(formData);
-    
-    // Converte a quantidade para negativo se for um AJUSTE (Saída)
-    // let finalQuantity = formData.quantidade;
-    // if (formData.tipoMovimento === 'AJUSTE') {
-    //     finalQuantity = -Math.abs(formData.quantidade);
-    // }
-    
-    const stockEntry: Omit<Stock, 'id'> = {
-      ...names,
-      produtoId: formData.produtoId,
-      fornecedorId: formData.fornecedorId,
-      quantidade: formData.quantidade,
-      validade: formData.validade,
-      tipoMovimento: formData.tipoMovimento,
-      motivoAjuste: formData.motivoAjuste,
-      dataMovimento: new Date()
-    };
-
-    if (this.isEditMode && this.stockEntryId) {
-      // MODO EDIÇÃO (Faz um update no registro, deve ser usado com cautela)
-      this.stockService.updateStockEntry(empresaId, this.stockEntryId, stockEntry)
-        .then(() => {
-          this.snackBar.open('Movimentação atualizada com sucesso!', 'Fechar', { duration: 3000 });
-          this.dialogRef.close(true);
-        })
-        .catch(error => {
-          console.error('Erro ao atualizar movimentação:', error);
-          this.snackBar.open('Erro ao atualizar movimentação.', 'Fechar', { duration: 5000 });
-        });
-    } else {
-      // MODO CRIAÇÃO (Adiciona novo registro)
-      this.stockService.addStockEntry(empresaId, stockEntry)
-        .then(() => {
-          this.snackBar.open('Movimentação de estoque salva com sucesso!', 'Fechar', { duration: 3000 });
-          this.dialogRef.close(true);
-        })
-        .catch(error => {
-          console.error('Erro ao salvar movimentação:', error);
-          this.snackBar.open('Erro ao salvar movimentação de estoque.', 'Fechar', { duration: 5000 });
-        });
-    }
-  }
-
-  closeModal() {
-    this.dialogRef.close();
-  }
+  closeModal(): void { if (!this.isSaving) this.dialogRef.close(false); }
 }

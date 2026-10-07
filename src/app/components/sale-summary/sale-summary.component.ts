@@ -13,6 +13,8 @@ export class SaleSummaryComponent {
   @Input() saleId = '';
   @Input() startedAt = new Date();
   @Input() loading = false;
+  @Input() locked = false;
+  @Input() offline = false;
 
   @Output() removeItem = new EventEmitter<number>();
   @Output() clearSale = new EventEmitter<void>();

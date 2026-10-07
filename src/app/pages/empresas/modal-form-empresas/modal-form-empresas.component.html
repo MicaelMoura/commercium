@@ -1,6 +1,6 @@
 <div class="modal-container p-3">
     <div class="modal-header">
-        <mat-icon class="close-icon hover" (click)="closeModal()">close</mat-icon>
+        <button mat-icon-button type="button" class="close-icon" (click)="closeModal()" aria-label="Fechar cadastro de empresa" [disabled]="isSaving"><mat-icon>close</mat-icon></button>
         <h1 class="titulo">{{ isEditMode ? 'Editar Empresa' : 'Cadastro de Empresa' }}</h1>
         <h2 class="subtitulo">Preencha o formulário com os dados da empresa</h2>
     </div>

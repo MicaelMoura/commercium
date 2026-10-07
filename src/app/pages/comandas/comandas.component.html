@@ -1,0 +1,52 @@
+<app-menu />
+<main class="management-page">
+  <header class="page-header"><div><span class="eyebrow">ATENDIMENTO</span><h1>Mesas e comandas</h1><p>Cada pedido no seu lugar. Todo o salão à vista.</p></div>
+    <div class="button-row">@if (auth.hasRole('administrador')) { <a mat-stroked-button routerLink="/salao"><mat-icon>tune</mat-icon>Configurar salão</a> }<button mat-flat-button (click)="abrirFormulario()" [disabled]="!pwa.online() || ocupado() || !!pendente()"><mat-icon>add</mat-icon>Nova comanda</button></div>
+  </header>
+  @if (pendente()) {<div class="notice" role="alert">Há um pagamento aguardando confirmação nesta estação. <a routerLink="/vendas">Verificar na frente de caixa</a>.</div>}
+  <section class="metric-grid" aria-label="Resumo do salão"><article><span>Mesas livres</span><strong>{{ salao().mesas.length - mesasOcupadas() }}<small> / {{ salao().mesas.length }}</small></strong><mat-icon>table_restaurant</mat-icon></article><article><span>Em atendimento</span><strong>{{ comandas().length }}</strong><mat-icon>receipt_long</mat-icon></article><article><span>Consumo em aberto</span><strong>{{ totalAberto() | currency:'BRL' }}</strong><mat-icon>payments</mat-icon></article></section>
+  @if (carregando()) { <div class="state-panel" role="status"><mat-spinner diameter="36" />Carregando seu salão…</div> }
+  @else if (erro()) { <div class="state-panel error-state" role="alert"><mat-icon>cloud_off</mat-icon>{{ erro() }}<button mat-stroked-button (click)="carregar()">Tentar novamente</button></div> }
+  @else {
+  <div class="attendance-layout" [class.with-order]="selecionada()">
+    <section class="surface salon-section">
+      <div class="salon-toolbar"><div class="segmented" aria-label="Visualização"><button (click)="vista.set('grade')" [class.selected]="vista() === 'grade'" [attr.aria-pressed]="vista() === 'grade'"><mat-icon>grid_view</mat-icon>Grade</button><button (click)="vista.set('planta')" [class.selected]="vista() === 'planta'" [attr.aria-pressed]="vista() === 'planta'"><mat-icon>map</mat-icon>Planta</button></div><label class="compact-search"><mat-icon>search</mat-icon><input aria-label="Buscar mesa ou comanda" placeholder="Buscar mesa ou comanda" (input)="busca.set($any($event.target).value)"></label></div>
+      <div class="filter-row"><button (click)="filtro.set('todas')" [class.active]="filtro() === 'todas'">Todas as mesas</button><button (click)="filtro.set('livres')" [class.active]="filtro() === 'livres'"><i class="dot free"></i>Livres</button><button (click)="filtro.set('ocupadas')" [class.active]="filtro() === 'ocupadas'"><i class="dot busy"></i>Ocupadas</button></div>
+      @if (!salao().mesas.length) { <div class="state-panel"><mat-icon>deck</mat-icon><strong>O seu salão começa aqui</strong><span>Configure as mesas ou abra uma comanda sem mesa.</span>@if(auth.hasRole('administrador')) {<a mat-flat-button routerLink="/salao">Montar meu salão</a>}</div> }
+      @else {
+      <div [class.table-grid]="vista() === 'grade'" [class.floor-scroll]="vista() === 'planta'"><div [class.floor-plan]="vista() === 'planta'" [class.grid-contents]="vista() === 'grade'">
+        @if(vista() === 'planta'){@for(elemento of salao().elementos; track elemento.id){<div class="floor-element" [class.wall]="elemento.tipo === 'parede'" [class.entry]="elemento.tipo === 'entrada'" [style.left.%]="elemento.x / 12" [style.top.%]="elemento.y / 8" [style.width.%]="elemento.largura / 12" [style.height.%]="elemento.altura / 8" [style.transform]="'rotate(' + elemento.rotacao + 'deg)'"><mat-icon>{{ iconeElemento(elemento.tipo) }}</mat-icon><span>{{ elemento.nome }}</span></div>}}
+        @for (mesa of mesasVisiveis(); track mesa.id) {
+          <button class="table-tile" [class.occupied]="comandaMesa(mesa.id)" [class.current]="!!selecionadaId() && comandaMesa(mesa.id)?.id === selecionadaId()" [class.round]="vista() === 'planta' && mesa.formato === 'redonda'" [class.custom]="vista() === 'planta' && mesa.formato === 'personalizada'" [style.clip-path]="vista() === 'planta' ? poligono(mesa) : null"
+            [style.left.%]="vista() === 'planta' ? mesa.x / 12 : null" [style.top.%]="vista() === 'planta' ? mesa.y / 8 : null" [style.width.%]="vista() === 'planta' ? mesa.largura / 12 : null" [style.height.%]="vista() === 'planta' ? mesa.altura / 8 : null"
+            [style.transform]="vista() === 'planta' ? 'rotate(' + mesa.rotacao + 'deg)' : null"
+            (click)="mesaClick(mesa)" [attr.aria-label]="mesa.nome + ', ' + (comandaMesa(mesa.id) ? 'ocupada' : 'livre') + ', ' + mesa.lugares + ' lugares'">
+            <span class="table-top"><mat-icon>table_restaurant</mat-icon><span>{{ mesa.lugares }} lugares</span></span><strong>{{ mesa.nome }}</strong><span class="table-status">{{ comandaMesa(mesa.id) ? (comandaMesa(mesa.id)?.total | currency:'BRL') : 'Livre' }}</span>
+          </button>
+        }
+      </div></div>
+      @if (!mesasVisiveis().length) {<div class="state-panel">Nenhuma mesa corresponde ao filtro.</div>}
+      }
+      <div class="section-heading"><h2>Comandas sem mesa</h2><span>{{ avulsas().length }} abertas</span></div>
+      <div class="loose-orders">@for (comanda of avulsas(); track comanda.id) {<button (click)="selecionar(comanda)" [class.current]="selecionadaId() === comanda.id"><mat-icon>receipt_long</mat-icon><span><strong>{{ comanda.nome }}</strong><small>{{ comanda.pessoas }} pessoa(s)</small></span><b>{{ comanda.total | currency:'BRL' }}</b></button>} @empty {<p class="muted">Nenhuma comanda avulsa em aberto.</p>}</div>
+    </section>
+    @if (selecionada(); as order) {
+    <aside class="surface order-panel" #orderPanel aria-label="Detalhes da comanda"><header><div><span class="eyebrow">{{ mesaNome(order.mesaId) }}</span><h2>{{ order.nome }}</h2><span class="muted">{{ order.pessoas }} pessoa(s) · desde {{ order.abertaEm.toDate() | date:'HH:mm' }}</span></div><button mat-icon-button aria-label="Fechar detalhes da comanda" [disabled]="ocupado() || !!pendente()" (click)="selecionadaId.set(null)"><mat-icon>close</mat-icon></button></header>
+      @if (ocupado()) {<mat-progress-bar mode="indeterminate" />}
+      @if (pendente()) {<p class="notice" role="alert">Confirmação pendente. Use “Verificar pagamento” para consultar a mesma venda sem duplicar cobranças.</p>}
+      <fieldset [disabled]="ocupado() || !pwa.online() || !!pendente()">
+        <label class="compact-search"><mat-icon>search</mat-icon><input aria-label="Buscar produto para comanda" placeholder="Adicionar produto…" (input)="produtoBusca.set($any($event.target).value)"></label>
+        <label class="quantity-field">Quantidade <input type="number" step="0.001" min="0.001" [formControl]="itemForm.controls.quantidade"></label>
+        <div class="product-picks">@for (product of catalogo(); track product.firebaseId) {<button (click)="adicionar(product)" [disabled]="itemForm.invalid"><span>{{ product.nome }}</span><b>{{ product.valorUnitarioVenda | currency:'BRL' }}</b><mat-icon>add_circle_outline</mat-icon></button>} @empty {<p class="muted">Nenhum produto encontrado.</p>}</div>
+        <h3>Itens da comanda</h3><div class="order-lines">@for (item of order.itens; track item.produtoId) {<div><span><strong>{{ item.descricao }}</strong><small>{{ item.quantidade | number:'1.0-3' }} × {{ item.valorUnitario | currency:'BRL' }}</small></span><b>{{ item.subtotal | currency:'BRL' }}</b><button mat-icon-button [attr.aria-label]="'Remover ' + item.descricao" (click)="remover(item.produtoId)"><mat-icon>close</mat-icon></button></div>} @empty {<p class="muted">Escolha um produto para começar.</p>}</div>
+        <label class="field-label">Observações<textarea [formControl]="observacao" maxlength="500" placeholder="Ex.: sem cebola, servir bebidas primeiro"></textarea></label><button mat-button (click)="anotar()" [disabled]="observacao.invalid">Salvar observação</button>
+        <div class="transfer-row"><label class="field-label">Vincular a uma mesa<select [formControl]="destino"><option value="">Sem mesa</option>@for(mesa of salao().mesas; track mesa.id) {<option [value]="mesa.id" [disabled]="!!comandaMesa(mesa.id) && mesa.id !== order.mesaId">{{ mesa.nome }} · {{ mesa.lugares }} lugares</option>}</select></label><button mat-icon-button aria-label="Confirmar transferência de mesa" (click)="transferir()"><mat-icon>move_up</mat-icon></button></div>
+      </fieldset>
+      <footer><div class="order-total"><span>Total da comanda</span><strong>{{ order.total | currency:'BRL' }}</strong></div><button mat-flat-button (click)="pagar()" [disabled]="!order.itens.length || ocupado() || !pwa.online()"><mat-icon>payments</mat-icon>{{ pendente() ? 'Verificar pagamento' : 'Receber e liberar mesa' }}</button><button mat-button class="danger-text" (click)="cancelar()" [disabled]="ocupado() || !!pendente() || !pwa.online()">Cancelar comanda</button></footer>
+    </aside> }
+  </div> }
+  @if (nova()) {
+  <div class="modal-backdrop-custom"><section class="surface new-order" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (keydown.escape)="!ocupado() && nova.set(false)" role="dialog" aria-modal="true" aria-labelledby="new-title"><header><div><span class="eyebrow">NOVO ATENDIMENTO</span><h2 id="new-title">Abrir comanda</h2></div><button mat-icon-button aria-label="Fechar nova comanda" [disabled]="ocupado()" (click)="nova.set(false)"><mat-icon>close</mat-icon></button></header>
+    <form [formGroup]="novaForm" (ngSubmit)="criar()"><mat-form-field appearance="outline"><mat-label>Nome ou identificação</mat-label><input matInput formControlName="nome" maxlength="80" cdkFocusInitial><mat-error>Informe a identificação da comanda.</mat-error></mat-form-field><mat-form-field appearance="outline"><mat-label>Pessoas</mat-label><input matInput type="number" formControlName="pessoas" min="1" max="30"><mat-error>Informe de 1 a 30 pessoas.</mat-error></mat-form-field><mat-form-field appearance="outline"><mat-label>Mesa</mat-label><mat-select formControlName="mesaId"><mat-option value="">Sem mesa</mat-option>@for (mesa of salao().mesas; track mesa.id) {<mat-option [value]="mesa.id" [disabled]="!!comandaMesa(mesa.id)">{{ mesa.nome }} · {{ mesa.lugares }} lugares</mat-option>}</mat-select></mat-form-field><button mat-flat-button type="submit" [disabled]="novaForm.invalid || ocupado() || !pwa.online()">{{ ocupado() ? 'Abrindo…' : 'Abrir comanda' }}</button></form>
+  </section></div> }
+</main>

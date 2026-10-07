@@ -1,3 +1,4 @@
+import { configurarTabela } from '../../components/management-table';
 import { AfterViewInit, Component, DestroyRef, OnInit, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { UsersService } from '../../services/users.service';
@@ -27,8 +28,10 @@ export class UsersComponent implements OnInit, AfterViewInit {
   errorMessage = '';
   filterValue = '';
   deletingUserId: string | null = null;
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
+  paginator!: MatPaginator;
+  @ViewChild(MatPaginator) set paginatorView(value: MatPaginator) { this.paginator = value; this.dataSource.paginator = value; }
+  sort!: MatSort;
+  @ViewChild(MatSort) set sortView(value: MatSort) { this.sort = value; this.dataSource.sort = value; }
 
   constructor(
     public dialog: MatDialog,
@@ -44,6 +47,7 @@ export class UsersComponent implements OnInit, AfterViewInit {
   readonly empresaIdAtual = this.authService.activeTenantId;
 
   ngOnInit(): void {
+    configurarTabela(this.dataSource, { name: 'nome', email: 'email', access: 'acesso' });
     const empresaId = this.empresaIdAtual();
     if (!empresaId) {
       this.isLoading = false;

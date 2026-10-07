@@ -55,6 +55,11 @@ business/{empresaId}
   sales/{vendaId}
   cashflow/{movimentoId}
   caixa_fechamento/{registroId}
+  orders/{comandaId}
+  table_sessions/{mesaId}
+  settings/salao
+  settings/painel
+  settings/branding
 
 plataform/vOyNkQyF32YgFkc1ijyy
   units/{unitId}
@@ -77,6 +82,13 @@ Datas gravadas no Firestore devem ser tratadas como `Timestamp` na leitura e con
 - Entradas, saídas, saldo, abertura e fechamento de caixa.
 - Tabelas Material com filtro, ordenação e paginação em várias páginas.
 - Build de produção e configuração de deploy no Firebase Hosting.
+- Comandas avulsas ou vinculadas a mesas, transferência, observações, cancelamento e pagamento dividido; uma comanda ativa por mesa.
+- Grade responsiva e planta do salão, com mesas poligonais reutilizáveis, entrada móvel, balcões, caixas, paredes e outros elementos; o editor usa controles visuais para posição, rotação e tamanho, além de lugares, versão e proteção de mesas ocupadas.
+- Finalização idempotente no backend: venda, baixa de múltiplos lotes, entradas de caixa e encerramento/liberação da mesa em uma transação. Preços e disponibilidade são validados no servidor.
+- Interfaces substituíveis para periféricos, leitor em modo teclado, balança serial de texto ST/US, simuladores locais de balança/cartão e painel de senhas autenticado em tempo real. Cartão permanece com conferência manual, sem cobrança automática.
+- Identidade visual por tenant, com edição administrativa de nome, slogan, logotipo e cores e aplicação global por variáveis CSS.
+- Manifest, ícones, fontes locais e service worker de produção para PWA. Apenas a estrutura da interface é armazenada em cache; atendimento e pagamentos exigem conexão.
+- Ambiente de emuladores e seed com dados fictícios para revisão local, documentados no README.
 
 ## Lacunas conhecidas e prioridades
 
@@ -84,33 +96,37 @@ Trate esta lista como dívida já existente. Atualize-a quando uma lacuna for re
 
 ### Prioridade crítica
 
-- Finalização da venda, baixa de estoque e lançamento no caixa são operações separadas. Falhas parciais podem deixar os dados inconsistentes; implementar transação, batch ou backend idempotente antes de considerar o fluxo confiável.
+- A transação de venda está implementada e validada nos emuladores. A revisão de PDV/comandas/PWA ainda não foi publicada: coordenar o deploy de Functions, regras e frontend, incluindo a atualização das estações antigas que gravavam vendas diretamente.
 
 ### Implantação de segurança pendente
 
 - Guards, autorização por papel, restauração segura do tenant e logout Firebase estão implementados no código.
-- `firestore.rules` está versionado, coberto por testes de emulador e publicado no projeto `curso-angular-8e009` desde 21/08/2026.
+- A versão anterior de `firestore.rules` foi publicada no projeto `curso-angular-8e009` em 21/08/2026. Os novos bloqueios de escrita direta em vendas/comandas/mesas e de alteração de lançamentos vinculados a vendas foram validados localmente e ainda exigem publicação.
 - `senhaAdmin` não integra mais o contrato persistido. O provisionamento usa a callable Function `provisionarEmpresa`, publicada no projeto `curso-angular-8e009` em 21/08/2026.
 - O gerenciamento de usuários usa `provisionarUsuario`, `atualizarUsuario` e `removerAcessoUsuario`. As Functions, as regras que bloqueiam escrita direta e o frontend correspondente foram publicados no projeto `curso-angular-8e009` em 21/08/2026.
 - A migração `functions/scripts/migrate-remove-senha-admin.mjs` precisa ser executada com credenciais administrativas para remover campos legados, invalidar senhas potencialmente expostas e revogar sessões. Não considere a exposição remediada antes dessa execução.
 
 ### Prioridade alta
 
-- Validar estoque disponível e impedir quantidade negativa antes de concluir venda.
-- `getQuantidadeEmEstoque` assume que a consulta sempre retorna documento.
+- Comandas não reservam estoque; a disponibilidade é validada no pagamento. Estorno e conciliação de vendas ainda precisam de fluxo próprio.
+- `getQuantidadeEmEstoque` trata resultado vazio, mas ainda consulta um único lote; o checkout novo usa todos os lotes no backend.
 - A abertura/fechamento de caixa usa registros na coleção `caixa_fechamento`; revisar o período usado no fechamento e impedir mais de um caixa aberto por empresa/operador.
-- A emissão de NFC-e é somente um stub com URL de exemplo e está desativada no fluxo de venda.
-- Dados exibidos no cupom e identificação do operador/empresa ainda contêm placeholders.
+- A emissão de NFC-e não está implementada. O stub de URL de exemplo foi removido; o cupom visual usa dados reais da empresa/operador e permanece não fiscal.
+- Integração automática de cartão/Pix e protocolos proprietários de balança/painel dependem do fornecedor e de homologação física. Os contratos de adaptadores não equivalem a uma integração TEF concluída.
+- PWA não implementa vendas offline; instalação e compatibilidade de hardware precisam de homologação nos dispositivos de destino.
 
 ### Qualidade e manutenção
 
-- Os testes atuais são majoritariamente smoke tests gerados e não cobrem regras de negócio.
+- A suíte ainda contém smoke tests gerados; foram acrescentados testes de regras de pagamento, peso, geometria, estoque e integração transacional do PDV.
 - Na linha de base de 21/08/2026, a suíte headless executa 47 testes, as regras do Firestore executam 7 cenários, as validações puras das Functions executam 4 testes e o fluxo integrado de usuários executa 3 cenários nos emuladores de Auth, Firestore e Functions. A cobertura ainda inclui smoke tests e deve crescer junto das demais regras de negócio.
+- Na revisão local de 10/09/2026 passaram 56 testes Angular, 7 testes puros das Functions e 22 cenários integrados (9 de regras, 3 de usuários e 10 de PDV/comandas). Foram conferidos fluxos principais em desktop e celular, incluindo abertura/pagamento de comanda, arraste/edição de mesa, chamada de senha e cupom. O shell PWA abriu pelo cache com o servidor local desligado; isso não valida operação de negócio offline.
+- Na revisão local de 06/10/2026 passaram o build de produção, 56 testes Angular e 8 testes puros das Functions. Antes do ajuste final da entrada móvel, também passaram 12 cenários integrados de PDV/comandas; a nova asserção de persistência da entrada não pôde ser repetida porque o Firestore Emulator falhou ao abrir o loopback nesta estação, mesmo com JDK 21 portátil. A interface final foi conferida em desktop e em 390 × 844, incluindo os controles de aumentar, girar e a entrada móvel.
+- Na revisão local de 07/10/2026 passaram o build de produção, 56 testes Angular, 8 testes puros das Functions, 9 cenários de regras e 15 cenários integrados de usuários, PDV e comandas. O Firestore Emulator voltou a operar com Java 21 e `jdk.net.unixdomain.tmpdir` apontando para um diretório temporário nativo do Windows; a persistência da entrada, elementos girados, mesas personalizadas, chamadas de senha, identidade visual e o login local foram retestados.
 - Há subscriptions sem estratégia uniforme de descarte, uso frequente de `any`, logs de depuração e mensagens com `alert`/`confirm` misturadas a snackbars.
 - Não há lint configurado no `package.json`.
-- O README ainda não documenta instalação, Firebase, arquitetura nem operação.
-- O build alerta sobre o orçamento do bundle inicial, o orçamento de `sales.component.scss` e o uso CommonJS de Moment.
-- As auditorias de dependências de produção do frontend e das Functions estão zeradas. A auditoria completa do frontend ainda aponta alertas transitivos exclusivos do toolchain Angular 21 (`less/image-size` e `webpack-dev-server/sockjs/uuid`) sem correção compatível publicada. Não execute correção forçada: ela propõe Angular 22, que exige uma versão de Node mais nova e ainda requer uma migração principal separada.
+- O README documenta instalação, emuladores, arquitetura, operação, PWA, adaptadores e pendências de publicação.
+- O build de 10/09/2026 passa com avisos de bundle inicial (2,27 MB), estilos de menu/login/PDV/resumo/comandas/salão e Moment CommonJS. Os limites de erro e checks estritos foram preservados.
+- Auditorias `--omit=dev` de 10/09/2026 apontam três alertas moderados no frontend (cadeia Express/body-parser/qs) e um moderado nas Functions (qs). A auditoria completa também tem pendências do toolchain. Não aplicar correção forçada ou migração principal silenciosa; revisar atualização compatível separadamente.
 
 ## Padrões para alterações
 

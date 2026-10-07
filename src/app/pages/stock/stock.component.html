@@ -1,87 +1,21 @@
 <app-menu></app-menu>
-
-<div class="container-fluid pt-3">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="titulo">Gerenciamento de Estoque</h1>
-            <h2 class="subtitulo">Controle as entradas e ajustes do seu estoque</h2>
-        </div>
-    </div>
-
-    <div class="row mt-2">
-        <div class="col-8">
-            <mat-form-field>
-                <mat-label>Buscar Movimentação</mat-label>
-                <input matInput (keyup)="applyFilter($event)" placeholder="Digite o nome do produto ou fornecedor" #input>
-            </mat-form-field>
-        </div>
-        
-        <div class="col-4">
-            <app-button 
-                textButton="+ Nova Movimentação" 
-                class="float-end" 
-                (click)="openStockFormModal(null)"
-            ></app-button>
-        </div>
-
-        <div class="col-12 shadow-lg">
-            <table mat-table [dataSource]="dataSource" matSort>
-            
-                <ng-container matColumnDef="produto">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Produto </th>
-                  <td mat-cell class="td-table" *matCellDef="let entry"> {{entry.produtoNome}} </td>
-                </ng-container>
-
-                <ng-container matColumnDef="fornecedor">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Fornecedor </th>
-                  <td mat-cell class="td-table" *matCellDef="let entry"> {{entry.fornecedorNome}} </td>
-                </ng-container>
-
-                <ng-container matColumnDef="quantidade">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Quantidade </th>
-                    <td mat-cell class="td-table" *matCellDef="let entry"> {{entry.quantidade}} </td>
-                </ng-container>
-                
-                <ng-container matColumnDef="validade">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Validade </th>
-                    <td mat-cell class="td-table" *matCellDef="let entry"> {{entry.validade}} </td>
-                </ng-container>
-                
-                <ng-container matColumnDef="tipoMovimento">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Movimento </th>
-                    <td mat-cell class="td-table" 
-                        *matCellDef="let entry"
-                        [ngClass]="{'text-success': entry.tipoMovimento === 'ENTRADA', 'text-danger': entry.tipoMovimento === 'AJUSTE'}"
-                    > 
-                        {{entry.tipoMovimento === 'ENTRADA' ? 'Entrada' : 'Ajuste'}}
-                    </td>
-                </ng-container>
-
-                <ng-container matColumnDef="dataMovimento">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Data </th>
-                    <td mat-cell class="td-table" *matCellDef="let entry"> 
-                        {{entry.dataMovimento | date: 'dd/MM/yyyy HH:mm'}} 
-                    </td>
-                </ng-container>
-                
-                <ng-container matColumnDef="action">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"></th>
-                    <td mat-cell class="td-table" *matCellDef="let entry">
-                        <mat-icon class="icone-tabela" (click)="openModalViewStock(entry)">visibility</mat-icon>
-                        <mat-icon class="icone-tabela" (click)="openStockFormModal(entry)">edit</mat-icon>
-                        <mat-icon class="icone-tabela" (click)="deleteStock(entry.firebaseId)">delete</mat-icon>
-                    </td>
-                </ng-container>
-            
-                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-            
-                <tr class="mat-row no-data" *matNoDataRow>
-                  <td class="mat-cell" [attr.colspan]="displayedColumns.length">Nenhuma movimentação compatível com o filtro: "{{input.value}}"</td>
-                </tr>
-            </table>
-            
-            <mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
-        </div>
-    </div>
-</div>
+<main class="management-page"><header class="page-header"><div><h1>Gerenciamento de estoque</h1><p>Controle entradas e ajustes da empresa atualmente selecionada.</p></div><app-button textButton="+ Nova movimentação" (click)="openStockFormModal()"></app-button></header>
+  <section class="management-card" aria-labelledby="stock-title"><h2 id="stock-title" class="visually-hidden">Movimentações de estoque</h2>
+    <mat-form-field class="search-field" appearance="outline"><mat-label>Buscar movimentação</mat-label><mat-icon matPrefix>search</mat-icon><input matInput type="search" (input)="applyFilter($event)" placeholder="Produto ou fornecedor" aria-label="Buscar movimentação de estoque"></mat-form-field>
+    @if (isLoading) { <div class="state-panel" role="status"><mat-spinner diameter="36"></mat-spinner><span>Carregando estoque...</span></div> }
+    @else if (errorMessage) { <div class="state-panel error-state" role="alert"><mat-icon>error_outline</mat-icon><span>{{ errorMessage }}</span></div> }
+    @else { <div class="table-wrapper"><table mat-table [dataSource]="dataSource" matSort>
+      <ng-container matColumnDef="produto"><th mat-header-cell *matHeaderCellDef mat-sort-header>Produto</th><td mat-cell data-label="Produto" *matCellDef="let entry">{{ entry.produtoNome }}</td></ng-container>
+      <ng-container matColumnDef="fornecedor"><th mat-header-cell *matHeaderCellDef mat-sort-header>Fornecedor</th><td mat-cell data-label="Fornecedor" *matCellDef="let entry">{{ entry.fornecedorNome }}</td></ng-container>
+      <ng-container matColumnDef="quantidade"><th mat-header-cell *matHeaderCellDef mat-sort-header>Quantidade</th><td mat-cell data-label="Quantidade" *matCellDef="let entry">{{ entry.quantidade }}</td></ng-container>
+      <ng-container matColumnDef="validade"><th mat-header-cell *matHeaderCellDef mat-sort-header>Validade</th><td mat-cell data-label="Validade" *matCellDef="let entry">{{ entry.validade || '—' }}</td></ng-container>
+      <ng-container matColumnDef="tipoMovimento"><th mat-header-cell *matHeaderCellDef mat-sort-header>Movimento</th><td mat-cell data-label="Movimento" *matCellDef="let entry"><span class="status-badge" [class.positive]="entry.tipoMovimento === 'ENTRADA'" [class.negative]="entry.tipoMovimento === 'AJUSTE'">{{ entry.tipoMovimento === 'ENTRADA' ? 'Entrada' : 'Ajuste' }}</span></td></ng-container>
+      <ng-container matColumnDef="dataMovimento"><th mat-header-cell *matHeaderCellDef mat-sort-header>Data</th><td mat-cell data-label="Data" *matCellDef="let entry">{{ entry.dataMovimento | date:'dd/MM/yyyy HH:mm' }}</td></ng-container>
+      <ng-container matColumnDef="action"><th mat-header-cell *matHeaderCellDef class="actions-header">Ações</th><td mat-cell data-label="Ações" *matCellDef="let entry" class="actions-cell">
+        <button mat-icon-button type="button" (click)="openModalViewStock(entry)" [attr.aria-label]="'Ver movimentação de ' + entry.produtoNome"><mat-icon>visibility</mat-icon></button>
+        <button mat-icon-button type="button" (click)="openStockFormModal(entry)" [attr.aria-label]="'Editar movimentação de ' + entry.produtoNome"><mat-icon>edit</mat-icon></button>
+        <button mat-icon-button type="button" color="warn" (click)="deleteStock(entry)" [disabled]="deletingId !== null" [attr.aria-label]="'Excluir movimentação de ' + entry.produtoNome"><mat-icon>{{ deletingId === entry.id ? 'hourglass_empty' : 'delete' }}</mat-icon></button>
+      </td></ng-container><tr mat-header-row *matHeaderRowDef="displayedColumns"></tr><tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr><tr class="mat-row no-data" *matNoDataRow><td class="mat-cell" [attr.colspan]="displayedColumns.length">{{ filterValue ? 'Nenhuma movimentação corresponde à busca.' : 'Nenhuma movimentação cadastrada.' }}</td></tr>
+    </table></div><mat-paginator [pageSizeOptions]="[10, 25, 50]" [pageSize]="10" showFirstLastButtons aria-label="Paginação de estoque"></mat-paginator> }
+  </section>
+</main>

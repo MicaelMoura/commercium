@@ -1,8 +1,8 @@
 <div class="container-fluid p-3">
-    <mat-icon class="float-end hover" (click)="closeModal()">close</mat-icon>
+    <button mat-icon-button type="button" class="float-end" (click)="closeModal()" aria-label="Fechar detalhes do fornecedor"><mat-icon>close</mat-icon></button>
 
     <h1 class="titulo">Detalhes do Fornecedor</h1>
-    <h2 class="subtitulo">{{ fornecedor.corporate }} ({{ fornecedor.corporate }})</h2>
+    <h2 class="subtitulo">{{ fornecedor.corporate }} ({{ fornecedor.fantasyName }})</h2>
 
     <div class="details-grid">
         <div class="detail-item">

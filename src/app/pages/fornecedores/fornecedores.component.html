@@ -1,60 +1,20 @@
 <app-menu></app-menu>
-
-<div class="container-fluid pt-3">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="titulo">Cadastro de Fornecedores</h1>
-            <h2 class="subtitulo">Gerencie fornecedores adicionando, editando ou excluindo</h2>
-        </div>
-    </div>
-
-    <div class="row mt-2">
-        <div class="col-8">
-            <mat-form-field>
-                <mat-label>Busca fornecedor</mat-label>
-                <input matInput (keyup)="applyFilter($event)" placeholder="Digite sua busca" #input>
-            </mat-form-field>
-        </div>
-        <div class="col-4">
-            <app-button textButton="+ Cadastrar" class="float-end" (click)="openFornecedorFormModal(null)"></app-button>
-        </div>
-
-        <div class="col-12 shadow-lg">
-            <table mat-table [dataSource]="dataSource" matSort>
-            
-                <ng-container matColumnDef="fantasyName">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Nome fantasia </th>
-                  <td mat-cell class="td-table" *matCellDef="let fornecedor"> {{fornecedor.fantasyName}} </td>
-                </ng-container>
-
-                <ng-container matColumnDef="cnpj">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> CNPJ </th>
-                    <td mat-cell class="td-table" *matCellDef="let fornecedor"> {{fornecedor.cnpj}} </td>
-                </ng-container>
-                
-                <ng-container matColumnDef="email">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"> Email </th>
-                    <td mat-cell class="td-table" *matCellDef="let fornecedor"> {{fornecedor.email}} </td>
-                </ng-container>
-                
-                <ng-container matColumnDef="action">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-table"></th>
-                  <td mat-cell class="td-table" *matCellDef="let fornecedor">
-                      <mat-icon class="icone-tabela" (click)="openModalViewFornecedor(fornecedor)">visibility</mat-icon>
-                      <mat-icon class="icone-tabela" (click)="openFornecedorFormModal(fornecedor)">edit</mat-icon>
-                      <mat-icon class="icone-tabela" (click)="deleteFornecedor(fornecedor.firebaseId)">delete</mat-icon>
-                  </td>
-                </ng-container>
-            
-                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-            
-                <tr class="mat-row no-data" *matNoDataRow>
-                  <td class="mat-cell" colspan="5">Nenhum produto compatível com o filtro: "{{input.value}}"</td>
-                </tr>
-            </table>
-            
-            <mat-paginator [pageSizeOptions]="[5, 10, 25, 50]" aria-label="Quantidade de produtos por página"></mat-paginator>
-        </div>
-    </div>
-</div>
+<main class="management-page">
+  <header class="page-header"><div><h1>Cadastro de fornecedores</h1><p>Gerencie os fornecedores da empresa atualmente selecionada.</p></div><app-button textButton="+ Cadastrar fornecedor" (click)="openFornecedorFormModal()"></app-button></header>
+  <section class="management-card" aria-labelledby="suppliers-title"><h2 id="suppliers-title" class="visually-hidden">Fornecedores cadastrados</h2>
+    <mat-form-field class="search-field" appearance="outline"><mat-label>Buscar fornecedor</mat-label><mat-icon matPrefix>search</mat-icon><input matInput type="search" (input)="applyFilter($event)" placeholder="Nome, CNPJ ou e-mail" aria-label="Buscar fornecedor"></mat-form-field>
+    @if (isLoading) { <div class="state-panel" role="status"><mat-spinner diameter="36"></mat-spinner><span>Carregando fornecedores...</span></div> }
+    @else if (errorMessage) { <div class="state-panel error-state" role="alert"><mat-icon>error_outline</mat-icon><span>{{ errorMessage }}</span></div> }
+    @else { <div class="table-wrapper"><table mat-table [dataSource]="dataSource" matSort>
+      <ng-container matColumnDef="fantasyName"><th mat-header-cell *matHeaderCellDef mat-sort-header>Nome fantasia</th><td mat-cell data-label="Nome fantasia" *matCellDef="let supplier">{{ supplier.fantasyName }}</td></ng-container>
+      <ng-container matColumnDef="cnpj"><th mat-header-cell *matHeaderCellDef mat-sort-header>CNPJ</th><td mat-cell data-label="CNPJ" *matCellDef="let supplier">{{ supplier.cnpj }}</td></ng-container>
+      <ng-container matColumnDef="email"><th mat-header-cell *matHeaderCellDef mat-sort-header>E-mail</th><td mat-cell data-label="E-mail" *matCellDef="let supplier">{{ supplier.email }}</td></ng-container>
+      <ng-container matColumnDef="action"><th mat-header-cell *matHeaderCellDef class="actions-header">Ações</th><td mat-cell data-label="Ações" *matCellDef="let supplier" class="actions-cell">
+        <button mat-icon-button type="button" (click)="openModalViewFornecedor(supplier)" [attr.aria-label]="'Ver ' + supplier.fantasyName"><mat-icon>visibility</mat-icon></button>
+        <button mat-icon-button type="button" (click)="openFornecedorFormModal(supplier)" [attr.aria-label]="'Editar ' + supplier.fantasyName"><mat-icon>edit</mat-icon></button>
+        <button mat-icon-button type="button" color="warn" (click)="deleteFornecedor(supplier)" [disabled]="deletingId !== null" [attr.aria-label]="'Excluir ' + supplier.fantasyName"><mat-icon>{{ deletingId === supplier.id ? 'hourglass_empty' : 'delete' }}</mat-icon></button>
+      </td></ng-container>
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr><tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr><tr class="mat-row no-data" *matNoDataRow><td class="mat-cell" [attr.colspan]="displayedColumns.length">{{ filterValue ? 'Nenhum fornecedor corresponde à busca.' : 'Nenhum fornecedor cadastrado.' }}</td></tr>
+    </table></div><mat-paginator [pageSizeOptions]="[5, 10, 25, 50]" [pageSize]="10" showFirstLastButtons aria-label="Paginação de fornecedores"></mat-paginator> }
+  </section>
+</main>

@@ -1,235 +1,118 @@
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
-import { MatTableDataSource } from '@angular/material/table';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
+import { configurarTabela } from '../../components/management-table';
+import { AfterViewInit, Component, DestroyRef, OnInit, ViewChild, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
+import { MatPaginator, MatPaginatorIntl } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Subscription } from 'rxjs';
-import { CashFlowService } from '../../services/cashflow.service';
+import { MatSort } from '@angular/material/sort';
+import { MatTableDataSource } from '@angular/material/table';
+import { Timestamp } from 'firebase/firestore';
+import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 import { CashFlow } from '../../interfaces/cashflow';
-import { AuthService } from '../../services/auth.services';
 import { FechamentoCaixa } from '../../interfaces/fechamento-caixa';
-// Importar os modais de entrada/saída que criaremos
-import { ModalEntradaComponent } from './entradas/modal-entrada.component';
-import { ModalSaidaComponent } from './saidas/modal-saida.component';
-import { ModalFechamentoCaixaComponent } from './fechamento-caixa/modal-fechamento-caixa.component';
+import { AuthService } from '../../services/auth.services';
+import { CashFlowService } from '../../services/cashflow.service';
 import { ModalAberturaCaixaComponent } from './abertura-caixa/modal-abertura-caixa.component';
+import { ModalEntradaComponent } from './entradas/modal-entrada.component';
+import { ModalFechamentoCaixaComponent } from './fechamento-caixa/modal-fechamento-caixa.component';
+import { ModalSaidaComponent } from './saidas/modal-saida.component';
 
-@Component({
-    selector: 'app-caixa',
-    templateUrl: './cashier.component.html',
-    styleUrls: ['./cashier.component.scss'],
-    standalone: false
-})
-export class CashierComponent implements OnInit {
+@Component({ selector: 'app-caixa', templateUrl: './cashier.component.html', styleUrls: ['./cashier.component.scss'], standalone: false })
+export class CashierComponent implements OnInit, AfterViewInit {
+  readonly caixaStatus = signal<'ABERTO' | 'FECHADO'>('FECHADO');
+  readonly lastFechamento = signal<FechamentoCaixa | null>(null);
+  readonly displayedColumns = ['data', 'tipo', 'descricao', 'valor', 'action'];
+  readonly dataSource = new MatTableDataSource<CashFlow>([]);
+  readonly empresaIdAtual = this.authService.activeTenantId;
+  isLoading = true;
+  errorMessage = '';
+  filterValue = '';
+  saldoAtual = 0;
+  deletingId: string | null = null;
+  changingStatus = false;
+  paginator!: MatPaginator;
+  @ViewChild(MatPaginator) set paginatorView(value: MatPaginator) { this.paginator = value; this.dataSource.paginator = value; }
+  sort!: MatSort;
+  @ViewChild(MatSort) set sortView(value: MatSort) { this.sort = value; this.dataSource.sort = value; }
 
-  caixaStatus = signal<'ABERTO' | 'FECHADO'>('FECHADO');
-  lastFechamento = signal<FechamentoCaixa | null>(null);
-
-  displayedColumns: string[] = ['data', 'tipo', 'descricao', 'valor', 'action'];
-  dataSource!: MatTableDataSource<CashFlow>;
-  listCashFlow: CashFlow[] = [];
-  saldoAtual: number = 0;
-  
-  // Variável para armazenar o ID da empresa ativa
-  private empresaIdAtual = this.authService.activeTenantId;
-  private cashFlowSubscription: Subscription | undefined;
-
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
-
-  constructor(
-    public dialog: MatDialog,
-    private cashFlowService: CashFlowService,
-    private authService: AuthService,
-    private snackBar: MatSnackBar
-  ) { }
+  constructor(public dialog: MatDialog, private cashFlowService: CashFlowService, private authService: AuthService,
+    private snackBar: MatSnackBar, paginatorIntl: MatPaginatorIntl, private destroyRef: DestroyRef) {
+    paginatorIntl.itemsPerPageLabel = 'Itens por página';
+  }
 
   ngOnInit(): void {
-    this.subscribeToCashFlowData();
-    this.checkCaixaStatus();
-  }
-
-  async checkCaixaStatus() {
-      const empresaId = this.empresaIdAtual();
-      if (!empresaId) return;
-
-      const last = await this.cashFlowService.getLastFechamento(empresaId);
-      this.lastFechamento.set(last);
-      
-      // Atualiza o status
-      this.caixaStatus.set(last?.status === 'ABERTO' ? 'ABERTO' : 'FECHADO');
-  }
-
-  async abrirCaixa(): Promise<void> {
+    configurarTabela(this.dataSource, { data: 'dataMovimento' });
     const empresaId = this.empresaIdAtual();
-    const operadorUid = this.authService.userUid();
-
-    if (!empresaId || !operadorUid) {
-        this.snackBar.open('ID da empresa ou operador ausente.', 'Fechar', { duration: 3000 });
-        return;
-    }
-    
-    // 1. Abre o modal para obter o troco inicial
-    const dialogRef = this.dialog.open(ModalAberturaCaixaComponent, {
-      width: '400px',
-      disableClose: true // Força o operador a tomar uma decisão
+    if (!empresaId) { this.isLoading = false; this.errorMessage = 'Nenhuma empresa ativa foi encontrada.'; return; }
+    this.cashFlowService.getAllCashFlow(empresaId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (items) => {
+        this.dataSource.data = items.map((item) => ({ ...item, dataMovimento: item.dataMovimento instanceof Timestamp ? item.dataMovimento.toDate() : item.dataMovimento }));
+        this.saldoAtual = this.dataSource.data.reduce((balance, item) => balance + (item.tipo === 'ENTRADA' ? item.valor : -item.valor), 0);
+        this.isLoading = false;
+      },
+      error: (error: unknown) => { console.error('Não foi possível carregar o caixa.', error); this.errorMessage = 'Não foi possível carregar as movimentações. Tente novamente.'; this.isLoading = false; },
     });
-
-    dialogRef.afterClosed().subscribe(async (trocoInicial: number | null) => {
-        if (trocoInicial === null || trocoInicial === undefined) {
-            this.snackBar.open('Abertura de caixa cancelada.', 'Fechar', { duration: 3000 });
-            return;
-        }
-
-        // 2. Prepara o registro de abertura
-        const registroAbertura: FechamentoCaixa = {
-            empresaId: empresaId,
-            operadorUid: operadorUid,
-            dataAbertura: new Date(),
-            dataFechamento: new Date(), // A data de fechamento é igual à de abertura para este registro
-            status: 'ABERTO', // 💡 Status de Abertura
-            valorInicialTroco: trocoInicial,
-            totalSuprimentos: trocoInicial, // Suprimento inicial é igual ao troco
-            // Zera todos os outros campos, que serão preenchidos no fechamento
-            totalSangrias: 0,
-            totalVendasDinheiro: 0,
-            totalVendasCartaoDebito: 0,
-            totalVendasCartaoCredito: 0,
-            totalVendasPix: 0,
-            totalOutrasEntradas: 0,
-            totalEntradasLiquidas: 0,
-            totalEsperado: trocoInicial,
-            valorContado: 0,
-            diferenca: 0,
-        };
-
-        try {
-            // 3. Salva o registro no Firestore (Usando o saveFechamento que criamos)
-            await this.cashFlowService.saveFechamento(empresaId, registroAbertura);
-            
-            this.snackBar.open(`Caixa aberto com R$ ${trocoInicial.toFixed(2).replace('.', ',')} de troco.`, 'Fechar', { duration: 4000 });
-            this.checkCaixaStatus(); // 4. Atualiza o status
-        } catch (error) {
-            console.error('Erro ao abrir caixa:', error);
-            this.snackBar.open('Erro ao registrar abertura do caixa.', 'Fechar', { duration: 5000 });
-        }
-    });
+    void this.checkCaixaStatus();
   }
 
-  openFechamentoModal() {
+  ngAfterViewInit(): void { this.dataSource.paginator = this.paginator; this.dataSource.sort = this.sort; }
+
+  async checkCaixaStatus(): Promise<void> {
     const empresaId = this.empresaIdAtual();
-    const lastFechamento = this.lastFechamento();
-
-    if (!empresaId || this.caixaStatus() === 'FECHADO' || !lastFechamento) {
-        this.snackBar.open('Caixa não está aberto ou ID da empresa ausente.', 'Fechar', { duration: 3000 });
-        return;
-    }
-
-    // 1. OBTÉM MOVIMENTAÇÕES E CALCULA O ESPERADO
-    // (A lógica de cálculo de totais deve ser feita no serviço ou no modal)
-    
-    // 2. ABRE O MODAL DE CONFERÊNCIA (Novo componente a ser criado)
-    // Passa o ID da empresa e a data/hora de abertura
-    const dialogRef = this.dialog.open(ModalFechamentoCaixaComponent, {
-        width: '500px',
-        data: {
-            empresaId: empresaId,
-            dataAbertura: lastFechamento.dataFechamento, // O fechamento anterior é o ponto de partida
-            valorTrocoInicial: lastFechamento.valorInicialTroco
-        }
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-        if (result && result.fechamentoConcluido) {
-            this.snackBar.open('Caixa fechado com sucesso!', 'Fechar', { duration: 3000 });
-            this.checkCaixaStatus(); // Recarrega o status
-        }
-    });
-  }
-  
-  ngOnDestroy(): void {
-    this.cashFlowSubscription?.unsubscribe();
+    if (!empresaId) return;
+    try { const last = await this.cashFlowService.getLastFechamento(empresaId); this.lastFechamento.set(last); this.caixaStatus.set(last?.status === 'ABERTO' ? 'ABERTO' : 'FECHADO'); }
+    catch (error: unknown) { console.error('Não foi possível verificar o status do caixa.', error); this.snackBar.open('Não foi possível verificar o status do caixa.', 'Fechar', { duration: 5000 }); }
   }
 
-  /**
-   * Subscreve ao fluxo de dados de caixa para atualizar a lista e o saldo
-   */
-  subscribeToCashFlowData() {
-    const empresaId = this.empresaIdAtual();
-    if (empresaId) {
-      this.cashFlowSubscription = this.cashFlowService.getAllCashFlow(empresaId)
-        .subscribe({
-          next: (data: CashFlow[]) => {
-            // Converte Timestamp para Date para exibição (se necessário)
-            this.listCashFlow = data.map(item => ({
-                ...item,
-                dataMovimento: (item.dataMovimento as any).toDate ? (item.dataMovimento as any).toDate() : item.dataMovimento 
-            }));
-            this.calculateBalance();
-            this.dataSource = new MatTableDataSource<CashFlow>(this.listCashFlow);
-            this.dataSource.paginator = this.paginator;
-            this.dataSource.sort = this.sort;
-          },
-          error: (err) => {
-            console.error('Erro ao carregar fluxo de caixa:', err);
-            this.snackBar.open('Erro ao carregar dados do caixa.', 'Fechar', { duration: 3000 });
-          }
-        });
-    }
-  }
-  
-  /**
-   * Calcula o saldo atual do caixa
-   */
-  calculateBalance() {
-    this.saldoAtual = this.listCashFlow.reduce((saldo, item) => {
-      if (item.tipo === 'ENTRADA') {
-        return saldo + item.valor;
-      } else if (item.tipo === 'SAÍDA') {
-        return saldo - item.valor;
-      }
-      return saldo;
-    }, 0); // O saldo inicial é zero
-  }
-  
-  // --- Métodos de CRUD ---
-  
-  openModalEntrada(cashFlow?: CashFlow | null) {
-    this.dialog.open(ModalEntradaComponent, {
-      width: '600px',
-      data: { cashFlow: cashFlow, empresaId: this.empresaIdAtual() }
+  abrirCaixa(): void {
+    if (this.changingStatus) return;
+    const empresaId = this.empresaIdAtual(); const operadorUid = this.authService.userUid();
+    if (!empresaId || !operadorUid) { this.snackBar.open('Empresa ou operador não identificado.', 'Fechar', { duration: 5000 }); return; }
+    this.dialog.open(ModalAberturaCaixaComponent, { width: 'min(92vw, 440px)', disableClose: true }).afterClosed().subscribe((trocoInicial: number | null) => {
+      if (trocoInicial !== null && trocoInicial !== undefined) void this.confirmarAbertura(empresaId, operadorUid, trocoInicial);
     });
   }
 
-  openModalSaida(cashFlow?: CashFlow | null) {
-    this.dialog.open(ModalSaidaComponent, {
-      width: '600px',
-      data: { cashFlow: cashFlow, empresaId: this.empresaIdAtual() }
-    });
+  private async confirmarAbertura(empresaId: string, operadorUid: string, trocoInicial: number): Promise<void> {
+    this.changingStatus = true;
+    try {
+      const latest = await this.cashFlowService.getLastFechamento(empresaId);
+      if (latest?.status === 'ABERTO') { this.lastFechamento.set(latest); this.caixaStatus.set('ABERTO'); this.snackBar.open('Já existe um caixa aberto para esta empresa.', 'Fechar', { duration: 5000 }); return; }
+      const now = new Date();
+      const opening: FechamentoCaixa = { empresaId, operadorUid, dataAbertura: now, dataFechamento: now, status: 'ABERTO', valorInicialTroco: trocoInicial,
+        totalSuprimentos: 0, totalSangrias: 0, totalVendasDinheiro: 0, totalVendasCartaoDebito: 0, totalVendasCartaoCredito: 0, totalVendasPix: 0,
+        totalOutrasEntradas: 0, totalEntradasLiquidas: 0, totalEsperado: trocoInicial, valorContado: 0, diferenca: 0 };
+      await this.cashFlowService.saveFechamento(empresaId, opening);
+      this.snackBar.open(`Caixa aberto com ${trocoInicial.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} de troco.`, 'Fechar', { duration: 4000 });
+      await this.checkCaixaStatus();
+    } catch (error: unknown) { console.error('Não foi possível abrir o caixa.', error); this.snackBar.open('Não foi possível abrir o caixa.', 'Fechar', { duration: 5000 }); }
+    finally { this.changingStatus = false; }
   }
-  
-  deleteCashFlow(cashFlowId: string) {
-    const empresaId = this.empresaIdAtual();
-    if (!empresaId) {
-      this.snackBar.open('ID da empresa inválida.', 'Fechar', { duration: 3000 });
-      return;
-    }
 
-    if (confirm('Tem certeza que deseja excluir esta movimentação?')) {
-        this.cashFlowService.deleteCashFlow(empresaId, cashFlowId)
-            .then(() => {
-                this.snackBar.open('Movimentação excluída com sucesso!', 'Fechar', { duration: 3000 });
-            })
-            .catch(error => {
-                this.snackBar.open('Erro ao excluir movimentação.', 'Fechar', { duration: 3000 });
-                console.error('Erro ao excluir:', error);
-            });
-    }
+  openFechamentoModal(): void {
+    const empresaId = this.empresaIdAtual(); const opening = this.lastFechamento();
+    if (!empresaId || !opening || this.caixaStatus() !== 'ABERTO' || this.changingStatus) return;
+    this.dialog.open(ModalFechamentoCaixaComponent, { width: 'min(92vw, 560px)', maxHeight: '90vh', disableClose: true,
+      data: { empresaId, dataAbertura: opening.dataAbertura, valorTrocoInicial: opening.valorInicialTroco } })
+      .afterClosed().subscribe((result: { fechamentoConcluido?: boolean } | undefined) => { if (result?.fechamentoConcluido) void this.checkCaixaStatus(); });
   }
-  
-  applyFilter(event: Event) {
-    const filterValue = (event.target as HTMLInputElement).value;
-    this.dataSource.filter = filterValue.trim().toLowerCase();
+
+  openModalEntrada(cashFlow: CashFlow | null = null): void { if (this.caixaStatus() === 'ABERTO') this.dialog.open(ModalEntradaComponent, { width: 'min(92vw, 620px)', maxHeight: '90vh', data: { cashFlow, empresaId: this.empresaIdAtual() } }); }
+  openModalSaida(cashFlow: CashFlow | null = null): void { if (this.caixaStatus() === 'ABERTO') this.dialog.open(ModalSaidaComponent, { width: 'min(92vw, 620px)', maxHeight: '90vh', data: { cashFlow, empresaId: this.empresaIdAtual() } }); }
+
+  deleteCashFlow(item: CashFlow): void {
+    if (!item.id || item.vendaId || this.deletingId || this.caixaStatus() !== 'ABERTO') return;
+    this.dialog.open(ConfirmationDialogComponent, { width: 'min(92vw, 440px)', data: { title: 'Excluir movimentação', message: `Deseja excluir a movimentação “${item.descricao}”?`, confirmLabel: 'Excluir movimentação', destructive: true } })
+      .afterClosed().subscribe((confirmed: boolean) => { if (confirmed) void this.removeCashFlow(item); });
   }
+
+  private async removeCashFlow(item: CashFlow): Promise<void> {
+    const empresaId = this.empresaIdAtual(); if (!empresaId || !item.id) return;
+    this.deletingId = item.id;
+    try { await this.cashFlowService.deleteCashFlow(empresaId, item.id); this.snackBar.open('Movimentação excluída com sucesso.', 'Fechar', { duration: 4000 }); }
+    catch (error: unknown) { console.error('Não foi possível excluir a movimentação.', error); this.snackBar.open('Não foi possível excluir a movimentação.', 'Fechar', { duration: 5000 }); }
+    finally { this.deletingId = null; }
+  }
+
+  applyFilter(event: Event): void { this.filterValue = (event.target as HTMLInputElement).value.trim(); this.dataSource.filter = this.filterValue.toLowerCase(); this.dataSource.paginator?.firstPage(); }
 }

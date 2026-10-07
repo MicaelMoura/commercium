@@ -1,107 +1,47 @@
-import { Component, OnInit, Inject } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Fornecedor } from '../../../interfaces/fornecedor';
 import { FornecedoresService } from '../../../services/fornecedores.service';
-import { AuthService } from '../../../services/auth.services';
-import { MatSnackBar } from '@angular/material/snack-bar';
 
-@Component({
-    selector: 'app-modal-form-fornecedor',
-    templateUrl: './modal-form-fornecedor.component.html',
-    styleUrls: ['./modal-form-fornecedor.component.scss'],
-    standalone: false
-})
+export interface FornecedorFormDialogData { fornecedor: Fornecedor | null; empresaId: string; }
+
+@Component({ selector: 'app-modal-form-fornecedor', templateUrl: './modal-form-fornecedor.component.html', styleUrls: ['./modal-form-fornecedor.component.scss'], standalone: false })
 export class ModalFormFornecedorComponent implements OnInit {
-
   formFornecedor!: FormGroup;
   isEditMode = false;
+  isSaving = false;
+  errorMessage = '';
+  constructor(private fb: FormBuilder, public dialogRef: MatDialogRef<ModalFormFornecedorComponent, boolean>, private fornecedoresService: FornecedoresService,
+    private snackBar: MatSnackBar, @Inject(MAT_DIALOG_DATA) public data: FornecedorFormDialogData) {}
 
-  constructor(
-    private fb: FormBuilder,
-    public dialogRef: MatDialogRef<ModalFormFornecedorComponent>,
-    private fornecedoresService: FornecedoresService,
-    private authService: AuthService,
-    private snackBar: MatSnackBar,
-    @Inject(MAT_DIALOG_DATA) public data: { fornecedor: Fornecedor | null}
-  ) {
-    
-  }
-  public empresaIdAtual = this.authService.activeTenantId;
   ngOnInit(): void {
-    this.buildForm();
-    
-    // Configura o modo de edição se os dados do fornecedor estiverem presentes
-    if (this.data.fornecedor) {
-      this.isEditMode = true;
-      // Preenche o formulário com os dados existentes
-      this.formFornecedor.patchValue(this.data.fornecedor);
-    }
-  }
-
-  buildForm() {
     this.formFornecedor = this.fb.group({
-      // O 'id' é necessário para a atualização, mas não é um campo visível
-      id: [null],
-      corporate: ['', Validators.required],
-      fantasyName: ['', Validators.required],
-      cnpj: ['', Validators.required],
-      email: ['', [Validators.required, Validators.email]],
-      phone: ['', Validators.required],
-      salesRep: ['', Validators.required],
-      observations: ['']
+      corporate: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(160)]],
+      fantasyName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
+      cnpj: ['', [Validators.required, Validators.pattern(/^(\d{14}|\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})$/)]],
+      email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
+      phone: ['', [Validators.required, Validators.pattern(/^(\d{10,11}|\(\d{2}\)\s?\d{4,5}-\d{4})$/)]],
+      salesRep: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
+      observations: ['', Validators.maxLength(500)],
     });
-    const empresaId = this.empresaIdAtual();
-    if(empresaId){
-      return;
-    }
-    // Adiciona o empresaid de forma invisível, mas essencial para a criação/edição
-    this.formFornecedor.addControl('empresaid', this.fb.control(empresaId));
-    // Se o ID da empresa não deve ser alterado, ele é desabilitado no formulário
-    this.formFornecedor.get('empresaid')?.disable();
+    if (this.data.fornecedor) { this.isEditMode = true; this.formFornecedor.patchValue(this.data.fornecedor); }
   }
 
-  closeModal(): void {
-    this.dialogRef.close();
-  }
-
-  saveFornecedor(): void {
-    if (this.formFornecedor.valid) {
-      // Cria uma cópia dos valores e re-habilita o campo empresaid para que o valor seja incluído no payload
-      const fornecedorData = { ...this.formFornecedor.getRawValue() }; 
-      const empresaId = this.empresaIdAtual();
-      if(!empresaId){
-        this.snackBar.open('ID da empresa inválida', 'Fechar', { duration: 3000 });
-        return;
-      }
-      
-      if (this.isEditMode && fornecedorData.id) {
-        // Modo Edição
-        this.fornecedoresService.updateFornecedor(empresaId, fornecedorData.id, fornecedorData)
-          .then(() => {
-            console.log('Fornecedor atualizado com sucesso!');
-            this.snackBar.open('Fornecedor atualizado com sucesso!', 'Fechar', { duration: 3000 });
-            this.dialogRef.close(true); // Retorna true para indicar sucesso
-          })
-          .catch(error => {
-            console.error('Erro ao atualizar fornecedor:', error);
-            this.snackBar.open('Erro ao atualizar fornecedor:', 'Fechar', { duration: 3000 });
-          });
-      } else {
-        // Modo Criação
-        // O id é nulo neste caso e será gerado pelo Firestore
-        delete fornecedorData.id; 
-        this.fornecedoresService.addFornecedor(empresaId, fornecedorData)
-          .then(() => {
-            console.log('Fornecedor salvo com sucesso!');
-            this.snackBar.open('Fornecedor salvo com sucesso!', 'Fechar', { duration: 3000 });
-            this.dialogRef.close(true);
-          })
-          .catch(error => {
-            console.error('Erro ao salvar fornecedor:', error);
-            this.snackBar.open('Erro ao salvar fornecedor:', 'Fechar', { duration: 3000 });
-          });
-      }
-    }
+  closeModal(): void { if (!this.isSaving) this.dialogRef.close(false); }
+  async saveFornecedor(): Promise<void> {
+    this.errorMessage = '';
+    if (this.formFornecedor.invalid || this.isSaving || !this.data.empresaId) { this.formFornecedor.markAllAsTouched(); return; }
+    this.isSaving = true;
+    const raw = this.formFornecedor.getRawValue();
+    const payload: Omit<Fornecedor, 'id'> = { corporate: raw.corporate.trim(), fantasyName: raw.fantasyName.trim(), cnpj: raw.cnpj.replace(/\D/g, ''),
+      email: raw.email.trim().toLowerCase(), phone: raw.phone.replace(/\D/g, ''), salesRep: raw.salesRep.trim(), observations: raw.observations.trim() };
+    try {
+      if (this.isEditMode) { if (!this.data.fornecedor?.id) throw new Error('Identificador do fornecedor não encontrado.'); await this.fornecedoresService.updateFornecedor(this.data.empresaId, this.data.fornecedor.id, payload); }
+      else { await this.fornecedoresService.addFornecedor(this.data.empresaId, payload); }
+      this.snackBar.open(`Fornecedor ${this.isEditMode ? 'atualizado' : 'cadastrado'} com sucesso.`, 'Fechar', { duration: 4000 }); this.dialogRef.close(true);
+    } catch (error: unknown) { console.error('Não foi possível salvar o fornecedor.', error); this.errorMessage = error instanceof Error ? error.message : 'Não foi possível salvar o fornecedor.'; }
+    finally { this.isSaving = false; }
   }
 }

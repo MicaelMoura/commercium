@@ -1,11 +1,19 @@
 /* You can add global styles to this file, and also import other style files */
+@use 'app/styles/management-page';
+@use 'app/styles/pos';
 @import '../node_modules/bootstrap/dist/css/bootstrap.min.css';
+@import '@fontsource/roboto/latin-400.css';
+@import '@fontsource/roboto/latin-500.css';
+@import '@fontsource/roboto/latin-700.css';
+@import '@fontsource/material-icons/index.css';
+
+.material-icons { font-family: 'Material Icons'; font-weight: normal; font-style: normal; font-size: 24px; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 
 :root {
-    --primary-color: #006494;
+    --primary-color: #ffca28;
     --second-color: #272727;
     --error-color: #ac2828;
     --gray-color: #757575;
@@ -14,8 +22,10 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
     --text-color:#000000;
     --text-color-second:#fafafa;
     --text-white-3:#f0f0f0;
-    --text-button-color:#fafafa;
+    --text-button-color:#302b1b;
     --backgroud-color: #fff;
+    --brand-secondary: #302e27;
+    --brand-background: #f8f7f3;
 }
 
 .c-primary {color: var(--primary-color);}
@@ -29,3 +39,16 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 .mat-mdc-progress-spinner .mdc-circular-progress__determinate-circle, .mat-mdc-progress-spinner .mdc-circular-progress__indeterminate-circle-graphic {
     stroke: var(--primary-color) !important;
 }
+
+// Yellow is the action color; darker gold keeps links and focus states readable.
+.mat-mdc-unelevated-button:not(:disabled) {
+    background: var(--primary-color);
+    color: var(--text-button-color);
+}
+.mat-mdc-form-field {
+    --mat-form-field-outlined-container-shape: 14px;
+    --mat-form-field-filled-container-shape: 14px;
+}
+.mdc-text-field--filled { border-radius: 14px !important; }
+.field-label input, .field-label select, .field-label textarea, .quantity-field input,
+.compact-search, .product-search { border-radius: 14px; }

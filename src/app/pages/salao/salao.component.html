@@ -1,0 +1,74 @@
+<app-menu />
+<main class="management-page">
+  <header class="page-header">
+    <div><span class="eyebrow">PERSONALIZE SEU ESPAÇO</span><h1>Configuração do salão</h1><p>Desenhe mesas, entradas, balcões, caixas, paredes e ambientes como eles existem no local.</p></div>
+    <div class="button-row"><a mat-stroked-button routerLink="/comandas"><mat-icon>arrow_back</mat-icon>Atendimento</a><button mat-flat-button (click)="salvar()" [disabled]="!alterado() || salvando() || carregando() || !!erro() || !pwa.online() || atualizadoRemoto()"><mat-icon>save</mat-icon>{{ salvando() ? 'Salvando…' : 'Salvar salão' }}</button></div>
+  </header>
+  @if(carregando()){<div class="state-panel"><mat-spinner diameter="36" />Carregando configuração…</div>}
+  @else if(erro()){<div class="state-panel error-state" role="alert">{{ erro() }}</div>}
+  @else {
+    @if(atualizadoRemoto()){<p class="notice" role="alert">Outro administrador atualizou o salão. Descarte o rascunho para carregar a nova configuração antes de editar.</p>}
+    <section class="surface object-library">
+      <div><strong>Adicionar à planta</strong><span>Escolha um item e depois arraste para posicionar.</span></div>
+      <div class="library-actions">
+        <button mat-stroked-button (click)="adicionar()"><mat-icon>table_restaurant</mat-icon>Mesa retangular</button>
+        <button mat-stroked-button (click)="adicionarElemento('entrada')"><mat-icon>meeting_room</mat-icon>Entrada</button>
+        <button mat-stroked-button (click)="adicionarElemento('balcao')"><mat-icon>countertops</mat-icon>Balcão</button>
+        <button mat-stroked-button (click)="adicionarElemento('caixa')"><mat-icon>point_of_sale</mat-icon>Caixa</button>
+        <button mat-stroked-button (click)="adicionarElemento('parede')"><mat-icon>horizontal_rule</mat-icon>Parede</button>
+        <button mat-stroked-button (click)="adicionarElemento('decoracao')"><mat-icon>weekend</mat-icon>Outro ambiente</button>
+        <button mat-flat-button (click)="desenharModelo()"><mat-icon>polyline</mat-icon>Desenhar mesa</button>
+      </div>
+      @if(modelos().length){<div class="saved-models"><span>MODELOS DE MESA</span>@for(modelo of modelos(); track modelo.id){<div><button type="button" class="model-add" (click)="adicionarModelo(modelo)"><span class="model-shape" [style.clip-path]="poligonoModelo(modelo)">+</span><b>{{ modelo.nome }}</b><small>{{ modelo.lugares }} lugares</small></button><button mat-icon-button type="button" [attr.aria-label]="'Editar modelo ' + modelo.nome" (click)="desenharModelo(modelo)"><mat-icon>edit</mat-icon></button></div>}</div>}
+    </section>
+    <div class="editor-layout">
+      <section class="surface canvas-section">
+        <div class="canvas-toolbar"><div><strong>Planta do salão</strong><span>{{ mesas().length }} mesas · {{ lugares() }} lugares · {{ elementos().length }} elementos</span></div><span class="zoom-hint">Área lógica 1.200 × 800</span></div>
+        <div class="canvas-scroll"><div class="canvas" #board (pointermove)="mover($event)" (pointerup)="terminar()" (pointercancel)="terminar()">
+          @for(elemento of elementos(); track elemento.id){
+            <div role="button" tabindex="0" class="editable-element" [class.wall]="elemento.tipo === 'parede'" [class.entry]="elemento.tipo === 'entrada'" [class.selected]="elemento.id === elementoSelecionadoId()" [style.left.%]="elemento.x / 12" [style.top.%]="elemento.y / 8" [style.width.%]="elemento.largura / 12" [style.height.%]="elemento.altura / 8" [style.transform]="'rotate(' + elemento.rotacao + 'deg)'" (click)="selecionarElemento(elemento)" (keydown)="teclado($event,{tipo:'elemento',item:elemento})" (pointerdown)="iniciar($event,{tipo:'elemento',item:elemento},board)">
+              <mat-icon>{{ iconeElemento(elemento.tipo) }}</mat-icon><strong>{{ elemento.nome }}</strong>
+              @if(elemento.id === elementoSelecionadoId()){<div class="object-controls" aria-label="Controles do elemento"><button type="button" aria-label="Diminuir elemento" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation(); redimensionar(-20)"><mat-icon>remove</mat-icon></button><button type="button" aria-label="Girar elemento" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation(); girar(15)"><mat-icon>rotate_right</mat-icon></button><button type="button" aria-label="Aumentar elemento" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation(); redimensionar(20)"><mat-icon>add</mat-icon></button></div>}
+              <button class="resize-handle" tabindex="-1" aria-label="Redimensionar elemento" (pointerdown)="iniciar($event,{tipo:'elemento',item:elemento},board,true)"><mat-icon>open_in_full</mat-icon></button>
+            </div>
+          }
+          @for(mesa of mesas(); track mesa.id){
+            <div role="button" tabindex="0" class="editable-table" [class.round]="mesa.formato === 'redonda'" [class.custom]="mesa.formato === 'personalizada'" [class.selected]="mesa.id === selecionadaId()" [style.left.%]="mesa.x / 12" [style.top.%]="mesa.y / 8" [style.width.%]="mesa.largura / 12" [style.height.%]="mesa.altura / 8" [style.transform]="'rotate(' + mesa.rotacao + 'deg)'" (click)="selecionar(mesa)" (keydown)="teclado($event,{tipo:'mesa',item:mesa})" (pointerdown)="iniciar($event,{tipo:'mesa',item:mesa},board)">
+              <div class="table-shape" [style.clip-path]="poligono(mesa)"><mat-icon>table_restaurant</mat-icon><strong>{{ mesa.nome }}</strong><span>{{ mesa.lugares }} lugares</span></div>
+              @if(mesa.id === selecionadaId()){<div class="object-controls" aria-label="Controles da mesa"><button type="button" aria-label="Diminuir mesa" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation(); redimensionar(-20)"><mat-icon>remove</mat-icon></button><button type="button" aria-label="Girar mesa" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation(); girar(15)"><mat-icon>rotate_right</mat-icon></button><button type="button" aria-label="Aumentar mesa" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation(); redimensionar(20)"><mat-icon>add</mat-icon></button></div>}
+              <button class="resize-handle" tabindex="-1" aria-label="Redimensionar mesa" (pointerdown)="iniciar($event,{tipo:'mesa',item:mesa},board,true)"><mat-icon>open_in_full</mat-icon></button>
+            </div>
+          }
+          @if(!mesas().length && !elementos().length){<div class="empty-canvas"><mat-icon>architecture</mat-icon><h2>Desenhe o seu atendimento</h2><p>Use a biblioteca acima para adicionar os primeiros elementos.</p></div>}
+        </div></div>
+        <div class="canvas-footer"><span><mat-icon>drag_pan</mat-icon>Arraste para mover. Selecione e use os pontos para diminuir, girar ou aumentar.</span><span>{{ alterado() ? 'Alterações não salvas' : 'Tudo salvo' }}</span></div>
+      </section>
+      <aside class="surface inspector">
+        @if(selecionada(); as mesa){
+          <span class="eyebrow">PROPRIEDADES DA MESA</span><h2>{{ mesa.nome }}</h2>
+          <form [formGroup]="form" (ngSubmit)="aplicar()">
+            <mat-form-field appearance="outline"><mat-label>Nome</mat-label><input matInput formControlName="nome" maxlength="24"></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Quantidade de lugares</mat-label><input matInput type="number" formControlName="lugares" min="1" max="30"></mat-form-field>
+            @if(mesa.formato !== 'personalizada'){<mat-form-field appearance="outline"><mat-label>Formato</mat-label><mat-select formControlName="formato"><mat-option value="retangular">Retangular / quadrada</mat-option><mat-option value="redonda">Circular / oval</mat-option></mat-select></mat-form-field>}
+            @else if(modeloDaMesa(mesa); as modelo){<button mat-stroked-button type="button" (click)="desenharModelo(modelo)"><mat-icon>polyline</mat-icon>Editar desenho</button>}
+            <p class="visual-help"><mat-icon>touch_app</mat-icon>Arraste a mesa para mover. Os três pontos sobre ela diminuem, giram e aumentam; a alça do canto ajusta o tamanho livremente.</p>
+            <button mat-flat-button type="submit" [disabled]="form.invalid || salvando()">Aplicar dados da mesa</button>
+            <button mat-button type="button" class="danger-text" (click)="remover()"><mat-icon>delete_outline</mat-icon>Remover mesa</button>
+          </form>
+        }
+        @else if(elementoSelecionado(); as elemento){
+          <span class="eyebrow">PROPRIEDADES DO ELEMENTO</span><h2>{{ elemento.nome }}</h2>
+          <form [formGroup]="elementoForm" (ngSubmit)="aplicarElemento()">
+            <span class="element-type"><mat-icon>{{ iconeElemento(elemento.tipo) }}</mat-icon>{{ elemento.tipo }}</span>
+            <mat-form-field appearance="outline"><mat-label>Nome</mat-label><input matInput formControlName="nome" maxlength="32"></mat-form-field>
+            <p class="visual-help"><mat-icon>touch_app</mat-icon>Arraste para mover. Use os pontos sobre o objeto para diminuir, girar ou aumentar e a alça do canto para redimensionar.</p>
+            <button mat-flat-button type="submit" [disabled]="elementoForm.invalid || salvando()">Aplicar nome</button>
+            <button mat-button type="button" class="danger-text" (click)="remover()"><mat-icon>delete_outline</mat-icon>Remover elemento</button>
+          </form>
+        }
+        @else{<mat-icon class="inspector-icon">touch_app</mat-icon><h2>Seu salão, do seu jeito</h2><p class="muted">Selecione uma mesa ou elemento para mover e usar os controles visuais.</p><p class="muted">Mesas livres podem ter vértices arrastáveis e ficam salvas como modelos reutilizáveis.</p>}
+        @if(alterado()){<button mat-stroked-button (click)="descartar()" [disabled]="salvando()">Descartar rascunho</button>}
+      </aside>
+    </div>
+  }
+</main>

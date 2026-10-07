@@ -1,134 +1,76 @@
-import { Component, ViewChild, OnInit } from '@angular/core';
-import { ProdutosService } from '../../services/produtos.service';
-import { MatPaginator } from '@angular/material/paginator';
+import { configurarTabela } from '../../components/management-table';
+import { AfterViewInit, Component, DestroyRef, OnInit, ViewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatDialog } from '@angular/material/dialog';
+import { MatPaginator, MatPaginatorIntl } from '@angular/material/paginator';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSort } from '@angular/material/sort';
+import { MatTableDataSource } from '@angular/material/table';
+import { combineLatest } from 'rxjs';
+import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 import { Produto } from '../../interfaces/produto';
 import { AuthService } from '../../services/auth.services';
-import { MatTableDataSource } from '@angular/material/table';
-import { MatDialog } from '@angular/material/dialog';
-import { ModalViewProdutoComponent } from './modal-view/modal-view-produto.component';
+import { PlataformService } from '../../services/plataform.service';
+import { ProdutosService } from '../../services/produtos.service';
 import { ModalFormProdutoComponent } from './modal-form/modal-form-produto.component';
-import { Router } from '@angular/router'; 
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { firstValueFrom } from 'rxjs';
+import { ModalViewProdutoComponent } from './modal-view/modal-view-produto.component';
 
-@Component({
-    selector: 'app-produtos',
-    templateUrl: './produtos.component.html',
-    styleUrl: './produtos.component.scss',
-    standalone: false
-})
+@Component({ selector: 'app-produtos', templateUrl: './produtos.component.html', styleUrl: './produtos.component.scss', standalone: false })
+export class ProdutosComponent implements OnInit, AfterViewInit {
+  readonly displayedColumns = ['nome', 'marca', 'unidadeMedida', 'venda', 'action'];
+  readonly dataSource = new MatTableDataSource<Produto>([]);
+  readonly empresaIdAtual = this.authService.activeTenantId;
+  isLoading = true;
+  errorMessage = '';
+  filterValue = '';
+  deletingId: string | null = null;
+  paginator!: MatPaginator;
+  @ViewChild(MatPaginator) set paginatorView(value: MatPaginator) { this.paginator = value; this.dataSource.paginator = value; }
+  sort!: MatSort;
+  @ViewChild(MatSort) set sortView(value: MatSort) { this.sort = value; this.dataSource.sort = value; }
 
-export class ProdutosComponent implements OnInit {
-  
-  // Colunas da tabela. 'compra' e 'venda' para valores.
-  displayedColumns: string[] = ['nome', 'marca', 'unidadeMedida', 'venda', 'action'];
-  dataSource: any;
-  listProdutos: Produto[] = [];
-
-
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
-
-  constructor(
-    public dialog: MatDialog,
-    private produtosService: ProdutosService,
-    private authService: AuthService,
-    private router: Router,
-    private snackBar: MatSnackBar,
-  ) {
-    this.dataSource = new MatTableDataSource<any>(this.listProdutos);
+  constructor(public dialog: MatDialog, private produtosService: ProdutosService, private plataformService: PlataformService,
+    private authService: AuthService, private snackBar: MatSnackBar, paginatorIntl: MatPaginatorIntl, private destroyRef: DestroyRef) {
+    paginatorIntl.itemsPerPageLabel = 'Itens por página';
   }
 
-  public empresaIdAtual = this.authService.activeTenantId;
-
-  ngOnInit() {
-    this.getListProdutos(this.empresaIdAtual() || '');
-  }
-
-  // MÉTODO AGORA RECEBE O ID DA EMPRESA
-  getListProdutos(empresaId: string) {
-    if(empresaId == ''){
-      this.snackBar.open('ID da empresa inválido.', 'Fechar', { duration: 3000 });
-      this.router.navigate(['home']);
-      return;
-    }
-    this.produtosService.getAllProdutos(empresaId).subscribe({
-      next: (response: Produto[]) => {
-        this.listProdutos = response;
-        this.dataSource = new MatTableDataSource<any>(this.listProdutos);
-        this.dataSource.paginator = this.paginator;
-        this.dataSource.sort = this.sort;
-        this.paginator._intl.itemsPerPageLabel = "Itens por página";
-        response.forEach(async produto => {
-          produto.nomeUnidadeMedida = await this.produtosService.getNomeUnidadeMedida(produto.unidadeDeMedida);
-        });
-      },
-      error: (err) => {
-        console.log('Erro ao carregar produtos: ', err);
-      }
-    });
-  }
-
-  ngAfterViewInit() {
-    this.orderProdutos();
-  }
-
-  orderProdutos() {
-    this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
-  }
-
-  applyFilter(event: Event) {
-    const filterValue = (event.target as HTMLInputElement).value;
-    this.dataSource.filter = filterValue.trim().toLowerCase();
-
-    if (this.dataSource.paginator) {
-      this.dataSource.paginator.firstPage();
-    }
-  }
-
-  openModalViewProduto(produto: Produto) {
-    this.dialog.open(ModalViewProdutoComponent, {
-      width: '1500px',
-      height: '1200px',
-      data: produto
-    });
-  }
-
-  // MÉTODO AGORA EXIGE O ID DA EMPRESA PARA EXCLUSÃO
-  deleteProduto(produtoId: string) {
+  ngOnInit(): void {
+    configurarTabela(this.dataSource, { venda: 'valorUnitarioVenda', unidadeMedida: 'nomeUnidadeMedida' });
     const empresaId = this.empresaIdAtual();
-    if (!empresaId) {
-        alert('ID da empresa não definido. Não foi possível excluir o produto.');
-        return;
-    }
-    if (confirm('Tem certeza que deseja excluir este produto?')) {
-        this.produtosService.deleteProduto(empresaId, produtoId)
-            .then(() => {
-                // Recarrega a lista após a exclusão
-                this.getListProdutos(this.empresaIdAtual() || '');
-            })
-            .catch(err => console.error('Erro ao excluir produto:', err));
-    }
+    if (!empresaId) { this.isLoading = false; this.errorMessage = 'Nenhuma empresa ativa foi encontrada.'; return; }
+    combineLatest([this.produtosService.getAllProdutos(empresaId), this.plataformService.getUnits()])
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: ([products, units]) => {
+          const unitNames = new Map(units.map((unit) => [unit.id, unit.name]));
+          this.dataSource.data = products.map((product) => ({ ...product, nomeUnidadeMedida: unitNames.get(product.unidadeDeMedida) ?? product.unidadeDeMedida }));
+          this.isLoading = false;
+        },
+        error: (error: unknown) => { console.error('Não foi possível carregar os produtos.', error); this.errorMessage = 'Não foi possível carregar os produtos. Tente novamente.'; this.isLoading = false; },
+      });
   }
 
-  openModalFormProduto(produto: Produto | null = null) {
-    // NOTE: O ModalFormProdutoComponent precisará apenas do ID da empresa para CRUD.
-    this.dialog.open(ModalFormProdutoComponent, {
-      width: '1000px',
-      height: '900px', // Aumentei a altura para acomodar mais campos
-      data: { 
-        produto: produto,
-        empresaId: this.empresaIdAtual() // Passa o ID da empresa para o modal
-      } 
-    })
-    .afterClosed().subscribe((result: boolean) => {
-      // Recarrega a lista apenas se a operação (criação/edição) foi bem-sucedida (result === true)
-      const empresaId = this.empresaIdAtual();
-      if (result === true && empresaId) {
-        this.getListProdutos(empresaId);
-      }
-    });
+  ngAfterViewInit(): void { this.dataSource.paginator = this.paginator; this.dataSource.sort = this.sort; }
+  applyFilter(event: Event): void { this.filterValue = (event.target as HTMLInputElement).value.trim(); this.dataSource.filter = this.filterValue.toLowerCase(); this.dataSource.paginator?.firstPage(); }
+  openModalViewProduto(produto: Produto): void { this.dialog.open(ModalViewProdutoComponent, { width: 'min(94vw, 980px)', maxHeight: '90vh', data: produto }); }
+
+  openModalFormProduto(produto: Produto | null = null): void {
+    const empresaId = this.empresaIdAtual();
+    if (!empresaId) { this.snackBar.open('Nenhuma empresa ativa foi encontrada.', 'Fechar', { duration: 5000 }); return; }
+    this.dialog.open(ModalFormProdutoComponent, { width: 'min(94vw, 1000px)', maxHeight: '90vh', data: { produto, empresaId } });
+  }
+
+  deleteProduto(produto: Produto): void {
+    if (!produto.firebaseId || this.deletingId) return;
+    this.dialog.open(ConfirmationDialogComponent, { width: 'min(92vw, 440px)', data: { title: 'Excluir produto', message: `Deseja excluir o produto ${produto.nome}?`, confirmLabel: 'Excluir produto', destructive: true } })
+      .afterClosed().subscribe((confirmed: boolean) => { if (confirmed) void this.removeProduto(produto); });
+  }
+
+  private async removeProduto(produto: Produto): Promise<void> {
+    const empresaId = this.empresaIdAtual();
+    if (!empresaId || !produto.firebaseId) return;
+    this.deletingId = produto.firebaseId;
+    try { await this.produtosService.deleteProduto(empresaId, produto.firebaseId); this.snackBar.open('Produto excluído com sucesso.', 'Fechar', { duration: 4000 }); }
+    catch (error: unknown) { console.error('Não foi possível excluir o produto.', error); this.snackBar.open('Não foi possível excluir o produto. Verifique se há estoque vinculado.', 'Fechar', { duration: 6000 }); }
+    finally { this.deletingId = null; }
   }
 }

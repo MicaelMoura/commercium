@@ -1,108 +1,18 @@
-:host {
-    display: flex;
-    height: 100vh;
-}
-
-.area-login-background {
-    flex: 0 0 30%;
-    display: none;
-
-    @media only screen and (min-width: 768px) {
-        display: block;
-        background-image: 
-            linear-gradient(to left, rgb(255, 255, 255) 0%, rgba(14, 19, 61, 0.404) 50%),
-            url('../../../assets/bg.jpg');
-        background-color: var(--backgroud-color);
-        background-size: auto 110%;
-        background-position: center bottom;
-        background-repeat: no-repeat;
-    }
-}
-
-.area-form {
-    flex: 1;
-    background: var(--backgroud-color);
-    display: flex; 
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    box-sizing: border-box;
-    padding: 20px;
-
-    @media only screen and (max-width: 767px) {
-        width: 100%;
-    }
-
-    form {
-        width: 100%;
-        max-width: 300px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .titulo {
-        font-size: 80px;
-        font-weight: bold;
-        text-align: center;
-        letter-spacing: 5px;
-        color: var(--primary-color);
-        margin-bottom: 10px;
-
-        @media only screen and (max-width: 767px) {
-            font-size: 40px;
-        }
-    }
-
-    .subtitulo {
-        font-size: 16px;
-        color: var(--gray-color);
-        margin-bottom: 30px;
-        text-align: center;
-    }
-
-    // Estilos para os campos do Material
-    mat-form-field {
-      width: 100%;
-      margin-bottom: 20px;
-    }
-
-    .forgot-password-button {
-      // Remover estilos conflitantes com o Material
-      text-align: center;
-    }
-
-    .forgot-password-link {
-        font-size: 14px;
-        color: var(--primary-color);
-        margin-top: -10px;
-        margin-bottom: 15px;
-        cursor: pointer; // Adiciona o cursor de ponteiro
-        transition: color 0.2s ease-in-out;
-
-        &:hover {
-            text-decoration: underline;
-        }
-    }
-
-    .footer {
-        position: absolute;
-        bottom: 4px;
-        font-size: 10px;
-        color: var(--gray-color);
-    }
-}
-
-.password-toggle-icon {
-  cursor: pointer;
-  color: #6b7280;
-  transition: color 0.2s ease;
-}
-
-.password-toggle-icon:hover {
-  color: #374151;
-}
-
-.password-toggle-icon.visible {
-  color: var(--primary-color);
-}
+:host{min-height:100dvh;display:grid;grid-template-columns:36% 1fr;background:#fff}
+.area-login-background{background-image:linear-gradient(to left,#fff 0%,#ffffff08 65%),url('../../../assets/bg.jpg');background-color:#fff;background-size:cover;background-position:center bottom;background-repeat:no-repeat}
+.area-form{padding:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
+.area-form form{width:100%;max-width:380px;margin:auto 0;padding:50px 0}
+.area-form h2{font-size:36px;letter-spacing:-1px;color:#302e27;margin:14px 0}
+.login-intro{font-size:13px;line-height:1.8;color:#79766c;margin-bottom:28px}
+.area-form mat-form-field{width:100%;font-size:13px;margin-bottom:4px}
+.area-form mat-icon[matPrefix]{color:#8c8573;font-size:20px}
+.forgot-password{display:block;margin:-7px 0 18px auto;font-size:12px}
+.login-submit{width:100%;min-height:50px;border-radius:14px}
+.login-security{display:flex;align-items:center;justify-content:center;gap:6px;font-size:10px;color:#817d72;margin-top:22px}
+.login-security mat-icon{font-size:13px;width:13px;height:13px}
+.area-form footer{display:flex;gap:15px;align-items:center;font-size:9px;letter-spacing:1px;color:#888478}
+.area-form footer span{font-size:9px;letter-spacing:0}
+.login-mobile-brand{display:flex;align-items:center;gap:10px;align-self:flex-start;font-size:14px;font-weight:700;letter-spacing:1px;color:#302e27}
+.login-mobile-brand img{width:36px}
+@media(max-width:900px){.area-form{padding:32px}}
+@media(max-width:700px){:host{grid-template-columns:1fr}.area-login-background{display:none}.area-form{min-height:100dvh;padding:25px}.area-form form{padding:45px 0}.area-form h2{font-size:34px}.area-form footer{flex-wrap:wrap;justify-content:center}}

@@ -103,3 +103,23 @@ test('dados de plataforma exigem autenticação e escrita administrativa', async
   await assertSucceeds(getDoc(doc(userFirestore, 'plataform/vOyNkQyF32YgFkc1ijyy/units/un')));
   await assertFails(setDoc(doc(userFirestore, 'plataform/vOyNkQyF32YgFkc1ijyy/units/kg'), { name: 'Quilo' }));
 });
+
+test('comandas, mesas, configurações e vendas isolam tenants e bloqueiam escrita direta', async () => {
+  for (const collectionName of ['orders', 'table_sessions', 'settings', 'sales']) {
+    const own = testEnvironment.authenticatedContext('user-a').firestore();
+    const other = testEnvironment.authenticatedContext('user-b').firestore();
+    await assertSucceeds(getDoc(doc(own, `business/tenant-a/${collectionName}/test`)));
+    await assertFails(getDoc(doc(other, `business/tenant-a/${collectionName}/test`)));
+    await assertFails(setDoc(doc(own, `business/tenant-a/${collectionName}/test`), { status: 'CONCLUIDA' }));
+    const admin = testEnvironment.authenticatedContext('admin-a').firestore();
+    await assertFails(setDoc(doc(admin, `business/tenant-a/${collectionName}/test`), { total: 0 }));
+  }
+});
+
+test('movimentações geradas por vendas não podem ser alteradas diretamente', async () => {
+  await testEnvironment.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'business/tenant-a/cashflow/sale-flow'), { vendaId: 'sale-1', valor: 20 }));
+  const firestore = testEnvironment.authenticatedContext('admin-a').firestore();
+  await assertFails(updateDoc(doc(firestore, 'business/tenant-a/cashflow/sale-flow'), { valor: 1 }));
+  await assertFails(setDoc(doc(firestore, 'business/tenant-a/cashflow/fake-flow'), { vendaId: 'sale-1', valor: 1 }));
+  await assertSucceeds(setDoc(doc(firestore, 'business/tenant-a/cashflow/manual'), { tipo: 'ENTRADA', valor: 20 }));
+});
